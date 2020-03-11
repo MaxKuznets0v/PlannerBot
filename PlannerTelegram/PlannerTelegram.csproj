@@ -53,12 +53,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Event.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="Planner.cs" />
+    <Compile Include="TelegramBot.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Users\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
