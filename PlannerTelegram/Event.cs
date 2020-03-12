@@ -24,7 +24,7 @@ namespace PlannerTelegram
         //public DateTime date;
         public Time time;
         bool done;
-        private Importance importance;
+        public Importance importance;
         //public Event(string name, DateTime date, Importance imp = Importance.Casual)
         //{
         //    this.name = name;
@@ -37,6 +37,20 @@ namespace PlannerTelegram
             this.time = time;
             this.importance = imp;
             done = false;
+        }
+        public Event()
+        {
+            name = "";
+            time = new Time();
+            importance = new Importance();
+            done = false;
+        }
+        public Event(Event e)
+        {
+            this.name = e.name;
+            this.time = e.time;
+            this.importance = e.importance;
+            this.done = e.done;
         }
     }
 }

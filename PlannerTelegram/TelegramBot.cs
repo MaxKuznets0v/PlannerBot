@@ -11,6 +11,7 @@ namespace PlannerTelegram
     class TelegramBot
     {
         static bool Debug = false;
+        static private Event tempEvent = new Event();
         static Planner planner = new Planner();
         public static ITelegramBotClient bot;
         private static string token = "";
@@ -55,75 +56,9 @@ namespace PlannerTelegram
                         "Press /add to start planning!\nPress /help to read more about commands");
                     break;
                 case "/add":
-                    //Send(userId, "Choose time and importance below");
-                    //Buttons for time
-                    //bot.OnCallbackQuery += AddButtonsTime;
-                    Send(userId, "Type business name");
-                    string name = "";
                     bot.OnMessage -= CommandsHandler;
-                    bot.OnMessage += (object sendr, Telegram.Bot.Args.MessageEventArgs ev) =>
-                    {
-                        name = ev.Message.Text;
-                    };
-                    var TimeMarkup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardMarkup(new []
-                    {
-                        new []
-                        {
-                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Today"),
-                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Tomorrow"),
-                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("No Term")
-                        }
-                    });
-                    TimeMarkup.OneTimeKeyboard = true;
-                    await bot.SendTextMessageAsync(userId, "Choose Time below!", replyMarkup: TimeMarkup);
-                    var time = new Time();
-                    bot.OnMessage += (object sendr, Telegram.Bot.Args.MessageEventArgs ev) =>
-                    {
-                        switch (ev.Message.Text)
-                        {
-                            case "Today":
-                                time = Time.Today;
-                                break;
-                            case "Tomorrow":
-                                time = Time.Tomorrow;
-                                break;
-                            case "No Term":
-                                time = Time.NoTerm;
-                                break;
-                        }
-                    };
-                    //Buttons for importance
-                    var ImpMarkup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardMarkup(new []
-                    {
-                        new[]
-                        {
-                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Important"),
-                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Medium"),
-                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Casual")
-                        }
-                    });
-                    ImpMarkup.OneTimeKeyboard = true;
-                    await bot.SendTextMessageAsync(userId, "Choose importance below!", replyMarkup: ImpMarkup);
-                    var imp = new Importance();
-                    bot.OnMessage += async (object sendr, Telegram.Bot.Args.MessageEventArgs ev) =>
-                    {
-                        switch (ev.Message.Text)
-                        {
-                            case "Important":
-                                imp = Importance.Important;
-                                break;
-                            case "Medium":
-                                imp = Importance.Medium;
-                                break;
-                            case "Casual":
-                                imp = Importance.Casual;
-                                break;
-                        }
-                    };
-                    
-                    planner.Add(e.Message.Chat.Id, new Event(name, time, imp));
-                    Send(e.Message.Chat.Id, "Record added!");
-                    bot.OnMessage += CommandsHandler;
+                    Send(userId, "Type business name");
+                    bot.OnMessage += AddHandler;
                     break;
                 case "/show":
                     
@@ -136,8 +71,7 @@ namespace PlannerTelegram
                     break;
                 case "/help":
                     Send(userId, "This bot helps you to plan your businesses!\n" +
-                        "/add adds new plan then type <business name-time,importance>, where " +
-                        "time = Today/Tomorrow/NoTerm, importance = Important/Medium/Casual" +
+                        "/add adds new plan" +
                         "\n/mark then choose a bussiness to mark it done\n" +
                         "/show shows all records\n/delay then choose a different time for your business");
                     break;
@@ -147,108 +81,83 @@ namespace PlannerTelegram
             }
         }
 
-        private static void AddButtonsTime(object sender, Telegram.Bot.Args.CallbackQueryEventArgs e)
+        private static async void AddButtonsTime(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
-            bot.OnCallbackQuery -= AddButtonsTime;
-            bot.OnCallbackQuery += AddButtonsImp;
-            var respond = e.CallbackQuery.Message.Text;
+            bot.OnMessage -= AddButtonsTime;
+            bot.OnMessage += AddButtonsImp;
+            var respond = e.Message.Text;
             switch(respond)
             {
                 case "Today":
+                    tempEvent.time = Time.Today;
                     break;
                 case "Tomorrow":
+                    tempEvent.time = Time.Tomorrow;
                     break;
                 case "No Term":
+                    tempEvent.time = Time.NoTerm;
                     break;
             }
+            var ImpMarkup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardMarkup(new[]
+                    {
+                        new[]
+                        {
+                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Important"),
+                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Medium"),
+                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Casual")
+                        }
+                    });
+            ImpMarkup.OneTimeKeyboard = true;
+            await bot.SendTextMessageAsync(e.Message.Chat.Id, "Choose importance below!", replyMarkup: ImpMarkup);
         }
 
-        private static void AddButtonsImp(object sender, Telegram.Bot.Args.CallbackQueryEventArgs e)
+        private static void AddButtonsImp(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
-            bot.OnCallbackQuery -= AddButtonsImp;
-            var respond = e.CallbackQuery.Message.Text;
+            bot.OnMessage -= AddButtonsImp;
+            var respond = e.Message.Text;
             switch (respond)
             {
                 case "Important":
+                    tempEvent.importance = Importance.Important;
                     break;
                 case "Medium":
+                    tempEvent.importance = Importance.Medium;
                     break;
                 case "Casual":
+                    tempEvent.importance = Importance.Casual;
                     break;
             }
+            planner.Add(e.Message.Chat.Id, new Event(tempEvent));
+            tempEvent = new Event();
+            Send(e.Message.Chat.Id, "Record added!");
+            bot.OnMessage += CommandsHandler;
         }
 
-        private static void AddHandler(object sender, Telegram.Bot.Args.MessageEventArgs e)
+        private static async void AddHandler(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
             bot.OnMessage -= AddHandler;
-            bot.OnMessage += CommandsHandler;
-
-            var text = e.Message.Text;
-            string name = "", time = "", imp = "";
-            Time t = new Time();
-            Importance impnc = new Importance();
-            int i = 0;
-            for (i = 0; i < text.Length; ++i)
+            tempEvent.name = e.Message.Text;
+            if (tempEvent.name == "")
             {
-                if (text[i] != '-')
-                    name += text[i];
-                else
-                    break;
+                Send(e.Message.Chat.Id, "Enter non empty name!");
+                bot.OnMessage += CommandsHandler;
             }
-            ++i;
-            for (int j = i; j < text.Length; ++j, i = j)
+            else
             {
-                if (text[j] != ',')
-                    time += text[j];
-                else
-                    break;
-            }
-            ++i;
-            for (int j = i; j < text.Length; ++j, i = j)
-            {
-                if (text[j] != ',')
-                    imp += text[j];
-                else
-                    break;
-            }
-            time.ToLower();
-            imp.ToLower();
-            if (name != "" && time != "" && imp != "")
-            {
-                if ((time == "today" || time == "tomorrow" || time == "noterm") &&
-                    (imp == "important" || imp == "medium" || imp == "casual"))
-                {
-                    switch (time)
+                var TimeMarkup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardMarkup(new[]
                     {
-                        case "today":
-                            t = Time.Today;
-                            break;
-                        case "tomorrow":
-                            t = Time.Tomorrow;
-                            break;
-                        case "noterm":
-                            t = Time.NoTerm;
-                            break;
-                    }
-                    switch (imp)
-                    {
-                        case "important":
-                            impnc = Importance.Important;
-                            break;
-                        case "medium":
-                            impnc = Importance.Medium;
-                            break;
-                        case "casual":
-                            impnc = Importance.Casual;
-                            break;
-                    }
-
-                    planner.Add(e.Message.Chat.Id, new Event(name, t, impnc));
-                    Send(e.Message.Chat.Id, "Record added!");
-                    return;
-                }
+                        new []
+                        {
+                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Today"),
+                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Tomorrow"),
+                            new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("No Term")
+                        }
+                    });
+                TimeMarkup.OneTimeKeyboard = true;
+                await bot.SendTextMessageAsync(e.Message.Chat.Id, "Choose Time below!", replyMarkup: TimeMarkup);
+                bot.OnMessage += AddButtonsTime;
             }
-            Send(e.Message.Chat.Id, "Wrong format!");
+
         }
     }
 }
