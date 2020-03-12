@@ -32,6 +32,12 @@ namespace PlannerTelegram
             }
             events[userId].Add(e);
         }
+        public void Mark(long userId, int eventInd, bool state)
+        {
+            if (!Contains(userId))
+                return;
+            events[userId][eventInd].done = state;
+        }
         public List<Event> Get(long userId)
         {
             if (Contains(userId))

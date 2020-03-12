@@ -23,7 +23,7 @@ namespace PlannerTelegram
         public string name;
         //public DateTime date;
         public Time time;
-        bool done;
+        public bool done;
         public Importance importance;
         //public Event(string name, DateTime date, Importance imp = Importance.Casual)
         //{

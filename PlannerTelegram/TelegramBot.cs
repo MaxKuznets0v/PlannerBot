@@ -11,7 +11,7 @@ namespace PlannerTelegram
     class TelegramBot
     {
         static bool Debug = false;
-        static private Event tempEvent = new Event();
+        static private Tuple<Event, int> tempEvent = new Tuple<Event, int>(new Event(), 0);
         static Planner planner = new Planner();
         public static ITelegramBotClient bot;
         private static string token = "";
@@ -73,7 +73,18 @@ namespace PlannerTelegram
                     }
                     break;
                 case "/mark":
+                    bot.OnMessage -= CommandsHandler;
+                    var userEvents = planner.Get(userId);
+                    List<Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton> list = new List<Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton>();
+                    for (int i = 0; i < userEvents.Count(); ++i)
+                    {
+                        string cur = $"{userEvents[i].name} {userEvents[i].time} {userEvents[i].importance}";
+                        list.Add(Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton.WithCallbackData($"{cur}", $"{i}"));
+                    }
+                    var markup = new Telegram.Bot.Types.ReplyMarkups.InlineKeyboardMarkup(list);
+                    await bot.SendTextMessageAsync(userId, "Choose a deal you want to mark:", replyMarkup: markup);
 
+                    bot.OnCallbackQuery += MarkHandler;
                     break;
                 case "/delay":
 
@@ -91,6 +102,39 @@ namespace PlannerTelegram
             }
         }
 
+        private static async void MarkHandler(object sender, Telegram.Bot.Args.CallbackQueryEventArgs e)
+        {
+            bot.OnCallbackQuery -= MarkHandler;
+            int curEvent = Int16.Parse(e.CallbackQuery.Data);
+            tempEvent = new Tuple<Event, int>(planner.Get(e.CallbackQuery.Message.Chat.Id)[curEvent], curEvent);
+            var markup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardMarkup(new[]
+            {
+                new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Done"),
+                new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Not done")
+            });
+            await bot.SendTextMessageAsync(e.CallbackQuery.Message.Chat.Id, "Choose state", replyMarkup: markup);
+            bot.OnMessage += MarkChoose;
+        }
+
+        private static void MarkChoose(object sender, Telegram.Bot.Args.MessageEventArgs e)
+        {
+            bot.OnMessage -= MarkChoose;
+            switch (e.Message.Text)
+            {
+                case "Done":
+                    tempEvent.Item1.done = true;
+                    break;
+                case "Not done":
+                    tempEvent.Item1.done = false;
+                    break;
+            }
+            var markup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardRemove();
+            bot.SendTextMessageAsync(e.Message.Chat.Id, $"State was successfully changed!", replyMarkup: markup);
+            planner.Mark(e.Message.Chat.Id, tempEvent.Item2, tempEvent.Item1.done);
+            tempEvent = new Tuple<Event, int>(new Event(), 0);
+            bot.OnMessage += CommandsHandler;
+        }
+
         private static async void AddButtonsTime(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
             bot.OnMessage -= AddButtonsTime;
@@ -99,13 +143,13 @@ namespace PlannerTelegram
             switch(respond)
             {
                 case "Today":
-                    tempEvent.time = Time.Today;
+                    tempEvent.Item1.time = Time.Today;
                     break;
                 case "Tomorrow":
-                    tempEvent.time = Time.Tomorrow;
+                    tempEvent.Item1.time = Time.Tomorrow;
                     break;
                 case "No Term":
-                    tempEvent.time = Time.NoTerm;
+                    tempEvent.Item1.time = Time.NoTerm;
                     break;
             }
             var ImpMarkup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardMarkup(new[]
@@ -128,26 +172,28 @@ namespace PlannerTelegram
             switch (respond)
             {
                 case "Important":
-                    tempEvent.importance = Importance.Important;
+                    tempEvent.Item1.importance = Importance.Important;
                     break;
                 case "Medium":
-                    tempEvent.importance = Importance.Medium;
+                    tempEvent.Item1.importance = Importance.Medium;
                     break;
                 case "Casual":
-                    tempEvent.importance = Importance.Casual;
+                    tempEvent.Item1.importance = Importance.Casual;
                     break;
             }
-            planner.Add(e.Message.Chat.Id, new Event(tempEvent));
-            tempEvent = new Event();
-            Send(e.Message.Chat.Id, "Record added!");
+            planner.Add(e.Message.Chat.Id, new Event(tempEvent.Item1));
+            tempEvent = new Tuple<Event, int>(new Event(), 0);
+
+            var markup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardRemove();
+            bot.SendTextMessageAsync(e.Message.Chat.Id, "Record added!", replyMarkup: markup);
             bot.OnMessage += CommandsHandler;
         }
 
         private static async void AddHandler(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
             bot.OnMessage -= AddHandler;
-            tempEvent.name = e.Message.Text;
-            if (tempEvent.name == "")
+            tempEvent.Item1.name = e.Message.Text;
+            if (tempEvent.Item1.name == "")
             {
                 Send(e.Message.Chat.Id, "Enter non empty name!");
                 bot.OnMessage += CommandsHandler;
