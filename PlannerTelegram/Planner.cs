@@ -21,8 +21,22 @@ namespace PlannerTelegram
         {
             if (!Contains(userId))
                 events.Add(userId, new List<Event>());
-            
+
+            for(int i = 0; i < events[userId].Count(); ++i)
+            {
+                if (e < events[userId][i])
+                {
+                    events[userId].Insert(i, e);
+                    return;
+                }
+            }
             events[userId].Add(e);
+        }
+        public List<Event> Get(long userId)
+        {
+            if (Contains(userId))
+                return events[userId];
+            return new List<Event>();
         }
         //public void Delay(Event e, Time t)
         //{

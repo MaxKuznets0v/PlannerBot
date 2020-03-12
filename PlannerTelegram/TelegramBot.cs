@@ -15,7 +15,7 @@ namespace PlannerTelegram
         static Planner planner = new Planner();
         public static ITelegramBotClient bot;
         private static string token = "";
-        private static HttpToSocks5Proxy proxy = new HttpToSocks5Proxy("96.113.166.133", 1080);
+        private static HttpToSocks5Proxy proxy = new HttpToSocks5Proxy("96.96.1.165", 1080);
         static void Main(string[] args)
         {
             if (!Debug)
@@ -26,10 +26,8 @@ namespace PlannerTelegram
 
                 bot.OnMessage += CommandsHandler;
                 bot.StartReceiving();
-
             }
-            
-            
+
             Console.ReadKey();
         }
 
@@ -61,7 +59,18 @@ namespace PlannerTelegram
                     bot.OnMessage += AddHandler;
                     break;
                 case "/show":
-                    
+                    if (!planner.Contains(userId))
+                        Send(userId, "You have no plans!");
+                    else
+                    {
+                        var plans = planner.Get(userId);
+                        string res = $"You have planned {plans.Count()} things!\n";
+                        for (int i = 0; i < plans.Count(); ++i)
+                        {
+                            res += $"{i + 1}. {plans[i].name} {plans[i].time} {plans[i].importance}\n";
+                        }
+                        Send(userId, res);
+                    }
                     break;
                 case "/mark":
 
@@ -72,8 +81,9 @@ namespace PlannerTelegram
                 case "/help":
                     Send(userId, "This bot helps you to plan your businesses!\n" +
                         "/add adds new plan" +
-                        "\n/mark then choose a bussiness to mark it done\n" +
-                        "/show shows all records\n/delay then choose a different time for your business");
+                        "\n/show shows all records\n" +
+                        "/mark then choose a bussiness to mark it done\n" +
+                        "/delay then choose a different time for your business");
                     break;
                 default:
                     Send(userId, "Enter a proper command! Type /help to get more info");

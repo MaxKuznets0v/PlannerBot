@@ -31,7 +31,7 @@ namespace PlannerTelegram
         //    this.date = date;
         //    this.importance = imp;
         //}
-        public Event(string name, Time time, Importance imp = Importance.Casual)
+        public Event(string name, Time time, Importance imp)
         {
             this.name = name;
             this.time = time;
@@ -51,6 +51,14 @@ namespace PlannerTelegram
             this.time = e.time;
             this.importance = e.importance;
             this.done = e.done;
+        }
+        static public bool operator >(Event lhs, Event rhs)
+        {
+            return lhs.time > rhs.time;
+        }
+        static public bool operator <(Event lhs, Event rhs)
+        {
+            return lhs.time < rhs.time;
         }
     }
 }
