@@ -44,9 +44,16 @@ namespace PlannerTelegram
                 return events[userId];
             return new List<Event>();
         }
-        //public void Delay(Event e, Time t)
-        //{
-            
-        //}
+        public void Delay(long userId, int eventInd, Time time)
+        {
+            if (!Contains(userId) || events[userId][eventInd].time == time)
+                return;
+
+            // we have to keep list sorted 
+            events[userId][eventInd].time = time;
+            var changintEvent = new Event(events[userId][eventInd]);
+            events[userId].RemoveAt(eventInd);
+            Add(userId, changintEvent);
+        }
     }
 }
