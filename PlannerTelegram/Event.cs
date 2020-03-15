@@ -8,9 +8,9 @@ namespace PlannerTelegram
 {
     enum Importance
     {
-        Important,
-        Medium,
-        Casual
+        Important = 4,
+        Medium = 3,
+        Casual = 2
     }
     enum Time
     { 
@@ -20,22 +20,19 @@ namespace PlannerTelegram
     }
     class Event
     {
+        public DateTime initTime;
+        public List<DateTime> notifyTime = new List<DateTime>(); // notification time
         public string name;
-        //public DateTime date;
         public Time time;
         public bool done;
         public Importance importance;
-        //public Event(string name, DateTime date, Importance imp = Importance.Casual)
-        //{
-        //    this.name = name;
-        //    this.date = date;
-        //    this.importance = imp;
-        //}
+
         public Event(string name, Time time, Importance imp)
         {
             this.name = name;
             this.time = time;
-            this.importance = imp;
+            importance = imp;
+            initTime = DateTime.Now;
             done = false;
         }
         public Event()
@@ -43,14 +40,34 @@ namespace PlannerTelegram
             name = "";
             time = new Time();
             importance = new Importance();
+            initTime = DateTime.Now;
             done = false;
         }
         public Event(Event e)
         {
-            this.name = e.name;
-            this.time = e.time;
-            this.importance = e.importance;
-            this.done = e.done;
+            name = e.name;
+            importance = e.importance;
+            done = e.done;
+            initTime = e.initTime;
+            time = e.time;
+            if (e.notifyTime.Count() != 0)
+            {
+                notifyTime = e.notifyTime;
+                return;
+            }
+            if (time != Time.NoTerm)
+            {
+                double notStep;
+                if (time == Time.Today)
+                {
+                    notStep = (new DateTime(initTime.Year, initTime.Month, initTime.Day).AddDays(1) - initTime).TotalSeconds / (int)importance;
+                    for (int i = 0; i < (int)importance - 1; ++i)
+                        notifyTime.Add(initTime.AddSeconds((i + 1) * notStep));
+                }
+                else
+                    for (int i = 0; i < (int)importance - 1; ++i)
+                        notifyTime.Add(new DateTime(initTime.Year, initTime.Month, initTime.Day, 0, 0, 0).AddDays(1).AddHours((i + 1) * 6));
+            }
         }
         static public bool operator >(Event lhs, Event rhs)
         {
