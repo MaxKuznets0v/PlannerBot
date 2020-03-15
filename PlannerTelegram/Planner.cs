@@ -12,22 +12,28 @@ namespace PlannerTelegram
     {
         private static Dictionary<long, List<Event>> events;
         private static Dictionary<long, List<Event>> stats;
+        private static System.Collections.Concurrent.ConcurrentBag<Tuple<DateTime, Event>> todayNotif;
         //private static string dbpath = Directory.GetCurrentDirectory().ToString() + @"\Users\user_data.txt";  // path for storing user events
         //private static string dbpath = Directory.GetCurrentDirectory().ToString() + @"\Users\user_stat.txt";  // path for storing user stats
         //for debug
         private static string dbPath = Directory.GetParent(Directory.GetParent(Directory.GetCurrentDirectory().ToString()).ToString()) + @"\Users\user_data.txt";  // path for storing user events
         private static string statPath = Directory.GetParent(Directory.GetParent(Directory.GetCurrentDirectory().ToString()).ToString()) + @"\Users\user_stats.txt";  // path for storing user stats
-        //static void Main(string[] args)
-        //{
-            
-        //    //return JsonConvert.SerializeObject(events);
-        //}
+
         public Planner()
         {
             var database = File.ReadAllText(dbPath);
+            todayNotif = new System.Collections.Concurrent.ConcurrentBag<Tuple<DateTime, Event>>();
             events = JsonConvert.DeserializeObject<Dictionary<long, List<Event>>>(database);
             if (events == null)
                 events = new Dictionary<long, List<Event>>();
+            stats = new Dictionary<long, List<Event>>();
+            // initiate notifications queue
+            foreach (var user in events)
+                foreach (var ev in user.Value)
+                    if (ev.time == Time.Today)
+                        foreach (var time in ev.notifyTime)
+                            if (time >= DateTime.Now)
+                                todayNotif.Add(new Tuple<DateTime, Event>(time, ev));
         }
         public bool Contains(long userId)
         {
@@ -47,6 +53,11 @@ namespace PlannerTelegram
                 }
             }
             events[userId].Add(e);
+            if (e.time == Time.Today)
+            {
+                foreach (var notif in e.notifyTime)
+                    todayNotif.Add(new Tuple<DateTime, Event>(notif, e));
+            }
         }
         public void Mark(long userId, int eventInd, bool state)
         {
@@ -65,10 +76,32 @@ namespace PlannerTelegram
             if (!Contains(userId) || events[userId][eventInd].time == time)
                 return;
 
+            var newtodayNotif = new System.Collections.Concurrent.ConcurrentBag<Tuple<DateTime, Event>>();
+            if (events[userId][eventInd].time == Time.Today)
+            {
+                foreach (var n in todayNotif)
+                {
+                    bool contains = false;
+
+                    foreach (var elem in events[userId][eventInd].notifyTime)
+                    {
+                        if (n.Item1 == elem)
+                        {
+                            contains = true;
+                            break;
+                        }
+                    }
+                    if (!contains)
+                        newtodayNotif.Add(n);
+                }
+                todayNotif = newtodayNotif;
+            }
+
             // we have to keep list sorted 
             events[userId][eventInd].time = time;
             var changingEvent = new Event(events[userId][eventInd]);
             changingEvent.notifyTime = new List<DateTime>();
+
             if (time != Time.NoTerm)
             {
                 double notStep;
@@ -99,9 +132,12 @@ namespace PlannerTelegram
             // doesn't change its state
             // Deleted events are being stored
             var updatedEvents = new Dictionary<long, List<Event>>();
+          
             foreach (var user in events)
             {
                 updatedEvents.Add(user.Key, new List<Event>());
+                if (!stats.ContainsKey(user.Key))
+                    stats.Add(user.Key, new List<Event>());
                 foreach (var ev in user.Value)
                 {
                     if (ev.done)
