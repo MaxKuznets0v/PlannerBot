@@ -11,9 +11,12 @@ namespace PlannerTelegram
     class Planner
     {
         private static Dictionary<long, List<Event>> events;
+        private static Dictionary<long, List<Event>> stats;
         //private static string dbpath = Directory.GetCurrentDirectory().ToString() + @"\Users\user_data.txt";  // path for storing user events
+        //private static string dbpath = Directory.GetCurrentDirectory().ToString() + @"\Users\user_stat.txt";  // path for storing user stats
         //for debug
         private static string dbPath = Directory.GetParent(Directory.GetParent(Directory.GetCurrentDirectory().ToString()).ToString()) + @"\Users\user_data.txt";  // path for storing user events
+        private static string statPath = Directory.GetParent(Directory.GetParent(Directory.GetCurrentDirectory().ToString()).ToString()) + @"\Users\user_stats.txt";  // path for storing user stats
         //static void Main(string[] args)
         //{
             
@@ -21,8 +24,10 @@ namespace PlannerTelegram
         //}
         public Planner()
         {
-            events = new Dictionary<long, List<Event>>();
-
+            var database = File.ReadAllText(dbPath);
+            events = JsonConvert.DeserializeObject<Dictionary<long, List<Event>>>(database);
+            if (events == null)
+                events = new Dictionary<long, List<Event>>();
         }
         public bool Contains(long userId)
         {
@@ -82,7 +87,7 @@ namespace PlannerTelegram
             events[userId].RemoveAt(eventInd);
             Add(userId, changingEvent);
         }
-        public void Update()
+        public void MidnightUpdate()
         {
             // Today 
             // if in the end of the day the deal was not done then it 
@@ -93,8 +98,6 @@ namespace PlannerTelegram
             // No Term
             // doesn't change its state
             // Deleted events are being stored
-            if (DateTime.Now.TimeOfDay != new DateTime().TimeOfDay)
-                return;
             var updatedEvents = new Dictionary<long, List<Event>>();
             foreach (var user in events)
             {
@@ -104,36 +107,44 @@ namespace PlannerTelegram
                     if (ev.done)
                     {
                         //store done events
-
+                        stats[user.Key].Add(ev);
                     }
                     else
                     {
                         if (ev.time == Time.Today)
                         {
                             //store delayed events
+                            stats[user.Key].Add(ev);
                         }
                         else if (ev.time == Time.Tomorrow)
                             ev.time = Time.Today;
-                        updatedEvents[user.Key].Add(ev);
+                        updatedEvents[user.Key].Add(new Event(ev));
                     }
                 }
             }
             events = updatedEvents;
+            string st = JsonConvert.SerializeObject(stats, Formatting.Indented);
+            File.WriteAllText(statPath, st);
         }
         public void Notify()
         {
-            foreach (var user in events)
-                foreach (var ev in user.Value)
-                {
-                    if (ev.time == Time.Today)
-                    {
-                        
-                    }   
-                    else
-                        break;
-                }
-                    
+            //foreach (var user in events)
+            //    foreach (var ev in user.Value)
+            //    {
+            //        if (ev.time == Time.Today)
+            //        {
 
+            //        }   
+            //        else
+            //            break;
+            //    }
+            Console.WriteLine("I do things");
+
+        }
+        public void Save()
+        {
+            string ev = JsonConvert.SerializeObject(events, Formatting.Indented);
+            File.WriteAllText(dbPath, ev);
         }
     }
 }

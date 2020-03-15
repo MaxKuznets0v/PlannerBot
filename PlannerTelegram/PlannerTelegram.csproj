@@ -64,6 +64,7 @@
   <ItemGroup />
   <ItemGroup>
     <Content Include="Users\user_data.txt" />
+    <Content Include="Users\user_stats.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

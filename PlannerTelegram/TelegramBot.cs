@@ -23,11 +23,11 @@ namespace PlannerTelegram
     class TelegramBot
     {
         static private Tuple<Event, int> tempEvent = new Tuple<Event, int>(new Event(), 0);
-        static Planner planner = new Planner();
+        static readonly Planner planner = new Planner();
         static private Dictionary<long, State> states = new Dictionary<long, State>();
         public static ITelegramBotClient bot;
-        private static string token = "";
-        private static HttpToSocks5Proxy proxy = new HttpToSocks5Proxy("96.96.1.165", 1080);
+        private readonly static string token = "";
+        private readonly static HttpToSocks5Proxy proxy = new HttpToSocks5Proxy("96.96.1.165", 1080);
         static void Main(string[] args)
         {
             bot = new TelegramBotClient(token, proxy) { Timeout = TimeSpan.FromSeconds(10) };
@@ -45,10 +45,21 @@ namespace PlannerTelegram
             bot.OnMessage += OnMessageHandler;
             bot.OnCallbackQuery += OnCallbackQueryHandler;
             bot.StartReceiving();
-            //while (true)
-            //{
-            //    planner.Update();
-            //}
+
+            // Saving records every 30 sec
+            var timerSave = new System.Threading.Timer(o => { planner.Save(); }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+
+            // updating records
+            DateTime midnight = DateTime.Now.AddMinutes(1);
+            //DateTime midnight = DateTime.Now.AddDays(1).Date;
+            DateTime now = DateTime.Now;
+            System.Threading.Timer timerMidUpd = null;
+            timerMidUpd = new System.Threading.Timer(o => { planner.MidnightUpdate(); }, null, midnight - now, TimeSpan.FromMinutes(1));
+            //timerMidUpd = new System.Threading.Timer(o => { planner.Update(); }, null, midnight - now, TimeSpan.FromDays(1));
+
+            // Sending notifications
+
+
             Console.ReadKey();
         }
         static async void Send(Telegram.Bot.Types.ChatId userId, string text)
@@ -152,8 +163,10 @@ namespace PlannerTelegram
                             for (int i = 0; i < userEventsMarkName.Count(); ++i)
                             {
                                 string cur = $"{userEventsMarkName[i].name} {userEventsMarkName[i].time} {userEventsMarkName[i].importance}";
-                                var addingList = new List<Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton>();
-                                addingList.Add(Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton.WithCallbackData($"{cur}", $"{i}"));
+                                var addingList = new List<Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton>
+                                {
+                                    Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton.WithCallbackData($"{cur}", $"{i}")
+                                };
                                 listMarkName.Add(addingList);
                             }
                             var markupMarkName = new Telegram.Bot.Types.ReplyMarkups.InlineKeyboardMarkup(listMarkName);
@@ -166,8 +179,10 @@ namespace PlannerTelegram
                             for (int i = 0; i < userEvnts.Count(); ++i)
                             {
                                 string cur = $"{userEvnts[i].name} {userEvnts[i].time} {userEvnts[i].importance}";
-                                var addingList = new List<Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton>();
-                                addingList.Add(Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton.WithCallbackData($"{cur}", $"{i}"));
+                                var addingList = new List<Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton>
+                                {
+                                    Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton.WithCallbackData($"{cur}", $"{i}")
+                                };
                                 listDelay.Add(addingList);
                             }
                             var markupDelay = new Telegram.Bot.Types.ReplyMarkups.InlineKeyboardMarkup(listDelay);
@@ -192,8 +207,10 @@ namespace PlannerTelegram
                                 new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Tomorrow"),
                                 new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("No Term")
                             }
-                        });
-                        TimeMarkup.OneTimeKeyboard = true;
+                        })
+                        {
+                            OneTimeKeyboard = true
+                        };
                         await bot.SendTextMessageAsync(userId, "Choose Time below!", replyMarkup: TimeMarkup);
                     }
                     states[userId] = State.AddTime;
@@ -222,8 +239,10 @@ namespace PlannerTelegram
                             new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Medium"),
                             new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Casual")
                         }
-                    });
-                    ImpMarkup.OneTimeKeyboard = true;
+                    })
+                    {
+                        OneTimeKeyboard = true
+                    };
                     await bot.SendTextMessageAsync(userId, "Choose importance below!", replyMarkup: ImpMarkup);
                     states[userId] = State.AddImportance;
                     break;
