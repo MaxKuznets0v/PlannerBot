@@ -48,66 +48,42 @@ namespace PlannerTelegram
                 if (!Contains(userId))
                     events.Add(userId, new List<Event>());
 
-                for(int i = 0; i < events[userId].Count(); ++i)
+                bool added = false;
+                for (int i = 0; i < events[userId].Count(); ++i)
                 {
                     if (e < events[userId][i])
                     {
                         events[userId].Insert(i, e);
-                        return;
+                        added = true;
+                        break;
                     }
                 }
-                events[userId].Add(e);
-                if (e.time == Time.Today)
-                {
-                    for (int i = e.notifyTime.Count() - 1; i >= 0; --i)
-                    {
-                        for (int j = 0; j < todayNotif.Count(); ++j)
-                        {
-                            if (todayNotif[j].Item1 > e.notifyTime[i])
-                            {
-                                todayNotif.Insert(j, new Tuple<DateTime, Event>(e.notifyTime[i], e));
-                                break;
-                            }
-                        }
-                        todayNotif.Add(new Tuple<DateTime, Event>(e.notifyTime[i], e));
-                    }
-                }
+                if (!added)
+                    events[userId].Add(e);
+                if (e.time == Time.Today && !e.done)
+                    AddToQueue(e);
             }
         }
         public void Mark(long userId, int eventInd, bool state)
         {
             if (!Contains(userId))
                 return;
+            // deleting or adding event to the queue
+            if (events[userId][eventInd].done && !state)
+                AddToQueue(events[userId][eventInd]);
+            else if (!events[userId][eventInd].done && state)
+                RemoveFromQueue(events[userId][eventInd]);
+
             events[userId][eventInd].done = state;
         }
         public void Remove(long userId, int eventInd)
         {
             lock (locker)
             {
-                var deleted = events[userId][eventInd];
-                if (deleted.time == Time.Today)
+                if (events[userId][eventInd].time == Time.Today)
                 {
                     // deleting from notification queue
-                    var newtodayNotif = new List<Tuple<DateTime, Event>>();
-                    if (events[userId][eventInd].time == Time.Today)
-                    {
-                        foreach (var n in todayNotif)
-                        {
-                            bool contains = false;
-
-                            foreach (var elem in events[userId][eventInd].notifyTime)
-                            {
-                                if (n.Item1 == elem)
-                                {
-                                    contains = true;
-                                    break;
-                                }
-                            }
-                            if (!contains)
-                                newtodayNotif.Add(n);
-                        }
-                        todayNotif = newtodayNotif;
-                    }
+                    RemoveFromQueue(events[userId][eventInd]);
                 }
                 events[userId].RemoveAt(eventInd);
             }
@@ -231,6 +207,49 @@ namespace PlannerTelegram
         {
             string ev = JsonConvert.SerializeObject(events, Formatting.Indented);
             File.WriteAllText(dbPath, ev);
+        }
+        private void AddToQueue(Event e)
+        {
+            for (int i = e.notifyTime.Count() - 1; i >= 0; --i)
+            {
+                bool added = false;
+                for (int j = 0; j < todayNotif.Count(); ++j)
+                {
+                    if (todayNotif[j].Item1 > e.notifyTime[i])
+                    {
+                        todayNotif.Insert(j, new Tuple<DateTime, Event>(e.notifyTime[i], e));
+                        added = true;
+                        break;
+                    }
+                }
+                if (!added)
+                    todayNotif.Add(new Tuple<DateTime, Event>(e.notifyTime[i], e));
+            }
+            todayNotif.Sort();
+        }
+        private void RemoveFromQueue(Event e)
+        {
+            var newtodayNotif = new List<Tuple<DateTime, Event>>();
+            if (e.time == Time.Today)
+            {
+                foreach (var n in todayNotif)
+                {
+                    bool contains = false;
+
+                    foreach (var elem in e.notifyTime)
+                    {
+                        if (n.Item1 == elem)
+                        {
+                            contains = true;
+                            break;
+                        }
+                    }
+                    if (!contains)
+                        newtodayNotif.Add(n);
+                }
+                newtodayNotif.Sort();
+                todayNotif = newtodayNotif;
+            }
         }
     }
 }

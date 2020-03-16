@@ -46,14 +46,7 @@ namespace PlannerTelegram
 
             bot.OnMessage += OnMessageHandler;
             bot.OnCallbackQuery += OnCallbackQueryHandler;
-            Update();
-            bot.StartReceiving();
 
-            Console.ReadKey();
-        }
-
-        static void Update()
-        {
             // Saving records every 30 sec
             var timerSave = new Timer(o => { planner.Save(); }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
 
@@ -64,7 +57,12 @@ namespace PlannerTelegram
 
             // Sending notifications
             ThreadPool.QueueUserWorkItem(planner.Notify, bot);
+
+            bot.StartReceiving();
+
+            Console.ReadKey();
         }
+
         static public async void Send(Telegram.Bot.Types.ChatId userId, string text)
         {
             await bot.SendTextMessageAsync(
