@@ -2,17 +2,19 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using System.IO;
 using Newtonsoft.Json;
+using Telegram.Bot;
 
 namespace PlannerTelegram
 {
     class Planner
     {
+        private readonly object locker = new object();
         private static Dictionary<long, List<Event>> events;
         private static Dictionary<long, List<Event>> stats;
-        private static System.Collections.Concurrent.ConcurrentBag<Tuple<DateTime, Event>> todayNotif;
+        private static List<Tuple<DateTime, Event>> todayNotif;
         //private static string dbpath = Directory.GetCurrentDirectory().ToString() + @"\Users\user_data.txt";  // path for storing user events
         //private static string dbpath = Directory.GetCurrentDirectory().ToString() + @"\Users\user_stat.txt";  // path for storing user stats
         //for debug
@@ -22,7 +24,7 @@ namespace PlannerTelegram
         public Planner()
         {
             var database = File.ReadAllText(dbPath);
-            todayNotif = new System.Collections.Concurrent.ConcurrentBag<Tuple<DateTime, Event>>();
+            todayNotif = new List<Tuple<DateTime, Event>>();
             events = JsonConvert.DeserializeObject<Dictionary<long, List<Event>>>(database);
             if (events == null)
                 events = new Dictionary<long, List<Event>>();
@@ -41,22 +43,35 @@ namespace PlannerTelegram
         }
         public void Add(long userId, Event e)
         {
-            if (!Contains(userId))
-                events.Add(userId, new List<Event>());
+            lock(locker)
+            {
+                if (!Contains(userId))
+                    events.Add(userId, new List<Event>());
 
-            for(int i = 0; i < events[userId].Count(); ++i)
-            {
-                if (e < events[userId][i])
+                for(int i = 0; i < events[userId].Count(); ++i)
                 {
-                    events[userId].Insert(i, e);
-                    return;
+                    if (e < events[userId][i])
+                    {
+                        events[userId].Insert(i, e);
+                        return;
+                    }
                 }
-            }
-            events[userId].Add(e);
-            if (e.time == Time.Today)
-            {
-                foreach (var notif in e.notifyTime)
-                    todayNotif.Add(new Tuple<DateTime, Event>(notif, e));
+                events[userId].Add(e);
+                if (e.time == Time.Today)
+                {
+                    for (int i = e.notifyTime.Count() - 1; i >= 0; --i)
+                    {
+                        for (int j = 0; j < todayNotif.Count(); ++j)
+                        {
+                            if (todayNotif[j].Item1 > e.notifyTime[i])
+                            {
+                                todayNotif.Insert(j, new Tuple<DateTime, Event>(e.notifyTime[i], e));
+                                break;
+                            }
+                        }
+                        todayNotif.Add(new Tuple<DateTime, Event>(e.notifyTime[i], e));
+                    }
+                }
             }
         }
         public void Mark(long userId, int eventInd, bool state)
@@ -67,32 +82,35 @@ namespace PlannerTelegram
         }
         public void Remove(long userId, int eventInd)
         {
-            var deleted = events[userId][eventInd];
-            if (deleted.time == Time.Today)
+            lock (locker)
             {
-                // deleting from notification queue
-                var newtodayNotif = new System.Collections.Concurrent.ConcurrentBag<Tuple<DateTime, Event>>();
-                if (events[userId][eventInd].time == Time.Today)
+                var deleted = events[userId][eventInd];
+                if (deleted.time == Time.Today)
                 {
-                    foreach (var n in todayNotif)
+                    // deleting from notification queue
+                    var newtodayNotif = new List<Tuple<DateTime, Event>>();
+                    if (events[userId][eventInd].time == Time.Today)
                     {
-                        bool contains = false;
-
-                        foreach (var elem in events[userId][eventInd].notifyTime)
+                        foreach (var n in todayNotif)
                         {
-                            if (n.Item1 == elem)
+                            bool contains = false;
+
+                            foreach (var elem in events[userId][eventInd].notifyTime)
                             {
-                                contains = true;
-                                break;
+                                if (n.Item1 == elem)
+                                {
+                                    contains = true;
+                                    break;
+                                }
                             }
+                            if (!contains)
+                                newtodayNotif.Add(n);
                         }
-                        if (!contains)
-                            newtodayNotif.Add(n);
+                        todayNotif = newtodayNotif;
                     }
-                    todayNotif = newtodayNotif;
                 }
+                events[userId].RemoveAt(eventInd);
             }
-            events[userId].RemoveAt(eventInd);
         }
         public List<Event> Get(long userId)
         {
@@ -144,38 +162,58 @@ namespace PlannerTelegram
             // doesn't change its state
             // Deleted events are being stored
             var updatedEvents = new Dictionary<long, List<Event>>();
-          
-            foreach (var user in events)
+            lock(locker)
             {
-                updatedEvents.Add(user.Key, new List<Event>());
-                if (!stats.ContainsKey(user.Key))
-                    stats.Add(user.Key, new List<Event>());
-                foreach (var ev in user.Value)
+                foreach (var user in events)
                 {
-                    if (ev.done)
+                    updatedEvents.Add(user.Key, new List<Event>());
+                    if (!stats.ContainsKey(user.Key))
+                        stats.Add(user.Key, new List<Event>());
+                    foreach (var ev in user.Value)
                     {
-                        //store done events
-                        stats[user.Key].Add(ev);
-                    }
-                    else
-                    {
-                        if (ev.time == Time.Today)
+                        if (ev.done)
                         {
-                            //store delayed events
+                            //store done events
                             stats[user.Key].Add(ev);
                         }
-                        else if (ev.time == Time.Tomorrow)
-                            ev.time = Time.Today;
-                        updatedEvents[user.Key].Add(new Event(ev));
+                        else
+                        {
+                            if (ev.time == Time.Today)
+                            {
+                                //store delayed events
+                                stats[user.Key].Add(ev);
+                            }
+                            else if (ev.time == Time.Tomorrow)
+                                ev.time = Time.Today;
+                            updatedEvents[user.Key].Add(new Event(ev));
+                        }
                     }
                 }
+                events = updatedEvents;
             }
-            events = updatedEvents;
             string st = JsonConvert.SerializeObject(stats, Formatting.Indented);
             File.WriteAllText(statPath, st);
         }
-        public void Notify()
+        public async void Notify(Object state)
         {
+            var bot = (ITelegramBotClient)state;
+            while (true)
+            {
+                if (todayNotif.Count() != 0)
+                {
+                    var nextNotif = todayNotif[0];
+                    if (nextNotif.Item1 <= DateTime.Now)
+                    {
+                        await bot.SendTextMessageAsync(
+                            chatId: nextNotif.Item2.owner,
+                            text: $"{nextNotif.Item2.importance}: {nextNotif.Item2.name}"
+                            ).ConfigureAwait(false);
+                        todayNotif.RemoveAt(0);
+                    }
+                }
+
+                Thread.Sleep(60000);
+            }
             //foreach (var user in events)
             //    foreach (var ev in user.Value)
             //    {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using Telegram.Bot;
 using MihaZupan;
 
@@ -45,25 +46,26 @@ namespace PlannerTelegram
 
             bot.OnMessage += OnMessageHandler;
             bot.OnCallbackQuery += OnCallbackQueryHandler;
+            Update();
             bot.StartReceiving();
-
-            // Saving records every 30 sec
-            //var timerSave = new System.Threading.Timer(o => { planner.Save(); }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
-
-            // updating records
-            //DateTime midnight = DateTime.Now.AddSeconds(30);
-            DateTime midnight = DateTime.Now.AddDays(1).Date;
-            DateTime now = DateTime.Now;
-            System.Threading.Timer timerMidUpd = null;
-            //timerMidUpd = new System.Threading.Timer(o => { planner.MidnightUpdate(); }, null, midnight - now, TimeSpan.FromSeconds(30));
-            timerMidUpd = new System.Threading.Timer(o => { planner.MidnightUpdate(); }, null, midnight - now, TimeSpan.FromDays(1));
-
-            // Sending notifications
 
             Console.ReadKey();
         }
 
-        static async void Send(Telegram.Bot.Types.ChatId userId, string text)
+        static void Update()
+        {
+            // Saving records every 30 sec
+            var timerSave = new Timer(o => { planner.Save(); }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+
+            // updating records
+            DateTime midnight = DateTime.Now.AddDays(1).Date;
+            DateTime now = DateTime.Now;
+            var timerMidUpd = new Timer(o => { planner.MidnightUpdate(); }, null, midnight - now, TimeSpan.FromDays(1));
+
+            // Sending notifications
+            ThreadPool.QueueUserWorkItem(planner.Notify, bot);
+        }
+        static public async void Send(Telegram.Bot.Types.ChatId userId, string text)
         {
             await bot.SendTextMessageAsync(
                         chatId: userId,
@@ -286,6 +288,7 @@ namespace PlannerTelegram
                             Send(userId, "Push the buttons!");
                             return;
                     }
+                    tempEvent.Item1.owner = userId;
                     planner.Add(userId, new Event(tempEvent.Item1));
                     tempEvent = new Tuple<Event, int>(new Event(), 0);
 

@@ -20,6 +20,7 @@ namespace PlannerTelegram
     }
     class Event
     {
+        public long owner;
         public DateTime initTime;
         public List<DateTime> notifyTime = new List<DateTime>(); // notification time
         public string name;
@@ -27,8 +28,9 @@ namespace PlannerTelegram
         public bool done;
         public Importance importance;
 
-        public Event(string name, Time time, Importance imp)
+        public Event(string name, Time time, Importance imp, long owner)
         {
+            this.owner = owner;
             this.name = name;
             this.time = time;
             importance = imp;
@@ -38,6 +40,7 @@ namespace PlannerTelegram
         public Event()
         {
             name = "";
+            owner = new long();
             time = new Time();
             importance = new Importance();
             initTime = DateTime.Now;
@@ -45,6 +48,7 @@ namespace PlannerTelegram
         }
         public Event(Event e)
         {
+            owner = e.owner;
             name = e.name;
             importance = e.importance;
             done = e.done;
