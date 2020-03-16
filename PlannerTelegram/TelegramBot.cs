@@ -18,7 +18,8 @@ namespace PlannerTelegram
         MarkName,
         MarkDone,
         DelayName,
-        DelayTime
+        DelayTime,
+        RemoveName
     }
     class TelegramBot
     {
@@ -47,7 +48,7 @@ namespace PlannerTelegram
             bot.StartReceiving();
 
             // Saving records every 30 sec
-            var timerSave = new System.Threading.Timer(o => { planner.Save(); }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+            //var timerSave = new System.Threading.Timer(o => { planner.Save(); }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
 
             // updating records
             //DateTime midnight = DateTime.Now.AddSeconds(30);
@@ -106,6 +107,12 @@ namespace PlannerTelegram
                     await bot.SendTextMessageAsync(e.CallbackQuery.Message.Chat.Id, "Choose state", replyMarkup: markupDelayName);
                     states[userId] = State.DelayTime;
                     break;
+                case State.RemoveName:
+                    int curEventRemoveName = Int16.Parse(e.CallbackQuery.Data);
+                    planner.Remove(userId, curEventRemoveName);
+                    Send(userId, "Record was removed!");
+                    states[userId] = State.CommandReciever;
+                    break;
                 //default:
                 //    Send(userId, "Something went wrong! Code: Callback");
                 //    break;
@@ -136,10 +143,11 @@ namespace PlannerTelegram
                                 "/add adds new plan" +
                                 "\n/show shows all records\n" +
                                 "/mark then choose a bussiness to mark it done\n" +
-                                "/delay then choose a different time for your business");
+                                "/delay then choose a different time for your business\n" +
+                                "/remove then choose a record to remove");
                             break;
                         case "/show":
-                            if (!planner.Contains(userId))
+                            if (!planner.Contains(userId) || planner.Get(userId).Count() == 0)
                                 Send(userId, "You have no plans!");
                             else
                             {
@@ -187,6 +195,22 @@ namespace PlannerTelegram
                             }
                             var markupDelay = new Telegram.Bot.Types.ReplyMarkups.InlineKeyboardMarkup(listDelay);
                             await bot.SendTextMessageAsync(userId, "Choose a deal you want to delay:", replyMarkup: markupDelay);
+                            break;
+                        case "/remove":
+                            states[userId] = State.RemoveName;
+                            var usrEvnts = planner.Get(userId);
+                            List<List<Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton>> listRemove = new List<List<Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton>>();
+                            for (int i = 0; i < usrEvnts.Count(); ++i)
+                            {
+                                string cur = $"{usrEvnts[i].name} {usrEvnts[i].time} {usrEvnts[i].importance}";
+                                var addingList = new List<Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton>
+                                {
+                                    Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton.WithCallbackData($"{cur}", $"{i}")
+                                };
+                                listRemove.Add(addingList);
+                            }
+                            var markupRemove = new Telegram.Bot.Types.ReplyMarkups.InlineKeyboardMarkup(listRemove);
+                            await bot.SendTextMessageAsync(userId, "Choose a deal you want to delay:", replyMarkup: markupRemove);
                             break;
                         default:
                             Send(userId, "Enter a proper command! Type /help to get more info");

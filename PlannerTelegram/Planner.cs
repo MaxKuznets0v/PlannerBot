@@ -16,8 +16,8 @@ namespace PlannerTelegram
         //private static string dbpath = Directory.GetCurrentDirectory().ToString() + @"\Users\user_data.txt";  // path for storing user events
         //private static string dbpath = Directory.GetCurrentDirectory().ToString() + @"\Users\user_stat.txt";  // path for storing user stats
         //for debug
-        private static string dbPath = Directory.GetParent(Directory.GetParent(Directory.GetCurrentDirectory().ToString()).ToString()) + @"\Users\user_data.txt";  // path for storing user events
-        private static string statPath = Directory.GetParent(Directory.GetParent(Directory.GetCurrentDirectory().ToString()).ToString()) + @"\Users\user_stats.txt";  // path for storing user stats
+        private readonly static string dbPath = Directory.GetParent(Directory.GetParent(Directory.GetCurrentDirectory().ToString()).ToString()) + @"\Users\user_data.txt";  // path for storing user events
+        private readonly static string statPath = Directory.GetParent(Directory.GetParent(Directory.GetCurrentDirectory().ToString()).ToString()) + @"\Users\user_stats.txt";  // path for storing user stats
 
         public Planner()
         {
@@ -65,6 +65,35 @@ namespace PlannerTelegram
                 return;
             events[userId][eventInd].done = state;
         }
+        public void Remove(long userId, int eventInd)
+        {
+            var deleted = events[userId][eventInd];
+            if (deleted.time == Time.Today)
+            {
+                // deleting from notification queue
+                var newtodayNotif = new System.Collections.Concurrent.ConcurrentBag<Tuple<DateTime, Event>>();
+                if (events[userId][eventInd].time == Time.Today)
+                {
+                    foreach (var n in todayNotif)
+                    {
+                        bool contains = false;
+
+                        foreach (var elem in events[userId][eventInd].notifyTime)
+                        {
+                            if (n.Item1 == elem)
+                            {
+                                contains = true;
+                                break;
+                            }
+                        }
+                        if (!contains)
+                            newtodayNotif.Add(n);
+                    }
+                    todayNotif = newtodayNotif;
+                }
+            }
+            events[userId].RemoveAt(eventInd);
+        }
         public List<Event> Get(long userId)
         {
             if (Contains(userId))
@@ -76,32 +105,16 @@ namespace PlannerTelegram
             if (!Contains(userId) || events[userId][eventInd].time == time)
                 return;
 
-            var newtodayNotif = new System.Collections.Concurrent.ConcurrentBag<Tuple<DateTime, Event>>();
-            if (events[userId][eventInd].time == Time.Today)
-            {
-                foreach (var n in todayNotif)
-                {
-                    bool contains = false;
-
-                    foreach (var elem in events[userId][eventInd].notifyTime)
-                    {
-                        if (n.Item1 == elem)
-                        {
-                            contains = true;
-                            break;
-                        }
-                    }
-                    if (!contains)
-                        newtodayNotif.Add(n);
-                }
-                todayNotif = newtodayNotif;
-            }
-
             // we have to keep list sorted 
-            events[userId][eventInd].time = time;
-            var changingEvent = new Event(events[userId][eventInd]);
-            changingEvent.notifyTime = new List<DateTime>();
+            var changingEvent = new Event(events[userId][eventInd])
+            {
+                time = time,
+                notifyTime = new List<DateTime>()
+            };
 
+            Remove(userId, eventInd);
+
+            // changing notification time
             if (time != Time.NoTerm)
             {
                 double notStep;
@@ -113,11 +126,10 @@ namespace PlannerTelegram
                 }
                 else
                     for (int i = 0; i < (int)changingEvent.importance - 1; ++i)
-                        changingEvent.notifyTime.Add(new DateTime(changingEvent.initTime.Year, changingEvent.initTime.Month, changingEvent.initTime.Day, 0, 0, 0).AddDays(1).AddHours((i + 1) * 6));
+                        changingEvent.notifyTime.Add(new DateTime(changingEvent.initTime.Year, changingEvent.initTime.Month, changingEvent.initTime.Day, 0, 0, 0).AddDays(1).AddHours((i + 1) * (24 / (int)changingEvent.importance)));
             }
             else
                 changingEvent.notifyTime = new List<DateTime>();
-            events[userId].RemoveAt(eventInd);
             Add(userId, changingEvent);
         }
         public void MidnightUpdate()
