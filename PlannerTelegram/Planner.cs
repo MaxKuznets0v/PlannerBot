@@ -190,9 +190,22 @@ namespace PlannerTelegram
                     var nextNotif = todayNotif[0];
                     if (nextNotif.Item1 <= DateTime.Now)
                     {
+                        string emoji = "";
+                        switch (nextNotif.Item2.importance)
+                        {
+                            case (Importance.Important):
+                                emoji = "‼"; // two red exclamation marks
+                                break;
+                            case (Importance.Medium):
+                                emoji = "⚠"; // yellow warning sign
+                                break;
+                            case (Importance.Casual):
+                                emoji = "✳"; // green sparkle
+                                break;
+                        }
                         await bot.SendTextMessageAsync(
                             chatId: nextNotif.Item2.owner,
-                            text: $"{nextNotif.Item2.importance}: {nextNotif.Item2.name}"
+                            text: $"{emoji} {nextNotif.Item2.importance}: {nextNotif.Item2.name}"
                             ).ConfigureAwait(false);
                         todayNotif.RemoveAt(0);
                     }
