@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PlannerTelegram
 {
@@ -70,7 +68,7 @@ namespace PlannerTelegram
                 }
                 else
                     for (int i = 0; i < (int)importance - 1; ++i)
-                        notifyTime.Add(new DateTime(initTime.Year, initTime.Month, initTime.Day, 0, 0, 0).AddDays(1).AddHours((i + 1) * 6));
+                        notifyTime.Add(new DateTime(initTime.Year, initTime.Month, initTime.Day, 0, 0, 0).AddDays(1).AddHours((i + 1) * (24 / (int)importance)));
             }
         }
         static public bool operator >(Event lhs, Event rhs)

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.IO;
 using Newtonsoft.Json;
@@ -158,10 +157,21 @@ namespace PlannerTelegram
                             {
                                 //store delayed events
                                 stats[user.Key].Add(ev);
+                                ev.notifyTime.Clear();
+                                ev.time = Time.Tomorrow;
+                                var add = new Event(ev)
+                                {
+                                    time = Time.Today
+                                };
+                                updatedEvents[user.Key].Add(add);
+                                AddToQueue(add);
                             }
                             else if (ev.time == Time.Tomorrow)
+                            {
                                 ev.time = Time.Today;
-                            updatedEvents[user.Key].Add(new Event(ev));
+                                AddToQueue(ev);
+                                updatedEvents[user.Key].Add(new Event(ev));
+                            }
                         }
                     }
                 }
@@ -190,18 +200,6 @@ namespace PlannerTelegram
 
                 Thread.Sleep(60000);
             }
-            //foreach (var user in events)
-            //    foreach (var ev in user.Value)
-            //    {
-            //        if (ev.time == Time.Today)
-            //        {
-
-            //        }   
-            //        else
-            //            break;
-            //    }
-            Console.WriteLine("I do things");
-
         }
         public void Save()
         {
