@@ -27,11 +27,13 @@ namespace PlannerTelegram
             events = JsonConvert.DeserializeObject<Dictionary<long, List<Event>>>(database);
             if (events == null)
                 events = new Dictionary<long, List<Event>>();
-            stats = new Dictionary<long, List<Event>>();
+            stats = JsonConvert.DeserializeObject<Dictionary<long, List<Event>>>(File.ReadAllText(statPath));
+            if (stats == null)
+                stats = new Dictionary<long, List<Event>>();
             // initiate notifications queue
             foreach (var user in events)
                 foreach (var ev in user.Value)
-                    if (ev.time == Time.Today)
+                    if (ev.time == Time.Today && !ev.done)
                         foreach (var time in ev.notifyTime)
                             if (time >= DateTime.Now)
                                 todayNotif.Add(new Tuple<DateTime, Event>(time, ev));
@@ -125,7 +127,7 @@ namespace PlannerTelegram
                 changingEvent.notifyTime = new List<DateTime>();
             Add(userId, changingEvent);
         }
-        public void MidnightUpdate()
+        public void MidnightUpdate(Object state)
         {
             // Today 
             // if in the end of the day the deal was not done then it 
@@ -139,24 +141,35 @@ namespace PlannerTelegram
             var updatedEvents = new Dictionary<long, List<Event>>();
             lock(locker)
             {
+                Save();
                 foreach (var user in events)
                 {
                     updatedEvents.Add(user.Key, new List<Event>());
-                    if (!stats.ContainsKey(user.Key))
+                    if (!stats.ContainsKey(user.Key) && user.Value.Count() != 0)
                         stats.Add(user.Key, new List<Event>());
                     foreach (var ev in user.Value)
                     {
+                        //store events
                         if (ev.done)
                         {
-                            //store done events
-                            stats[user.Key].Add(ev);
+                            bool contains = false;
+                            foreach (var e in stats[user.Key])
+                            {
+                                if (e == ev)
+                                {
+                                    e.done = true;
+                                    contains = true;
+                                }
+                            }
+                            if (!contains)
+                                stats[user.Key].Add(ev);
                         }
                         else
                         {
                             if (ev.time == Time.Today)
                             {
-                                //store delayed events
-                                stats[user.Key].Add(ev);
+                                if (!stats[user.Key].Contains(ev))
+                                    stats[user.Key].Add(ev);
                                 ev.notifyTime.Clear();
                                 ev.time = Time.Tomorrow;
                                 var add = new Event(ev)
@@ -176,9 +189,10 @@ namespace PlannerTelegram
                     }
                 }
                 events = updatedEvents;
+                string st = JsonConvert.SerializeObject(stats, Formatting.Indented);
+                File.WriteAllText(statPath, st);
+                SendStats(state);
             }
-            string st = JsonConvert.SerializeObject(stats, Formatting.Indented);
-            File.WriteAllText(statPath, st);
         }
         public async void Notify(Object state)
         {
@@ -191,21 +205,25 @@ namespace PlannerTelegram
                     if (nextNotif.Item1 <= DateTime.Now)
                     {
                         string emoji = "";
+                        string importance = "";
                         switch (nextNotif.Item2.importance)
                         {
                             case (Importance.Important):
                                 emoji = "‼"; // two red exclamation marks
+                                importance = "Important";
                                 break;
                             case (Importance.Medium):
                                 emoji = "⚠"; // yellow warning sign
+                                importance = "Medium";
                                 break;
                             case (Importance.Casual):
                                 emoji = "✳"; // green sparkle
+                                importance = "Casual";
                                 break;
                         }
                         await bot.SendTextMessageAsync(
                             chatId: nextNotif.Item2.owner,
-                            text: $"{emoji} {nextNotif.Item2.importance}: {nextNotif.Item2.name}"
+                            text: $"{emoji} {importance}: {nextNotif.Item2.name}"
                             ).ConfigureAwait(false);
                         todayNotif.RemoveAt(0);
                     }
@@ -216,8 +234,11 @@ namespace PlannerTelegram
         }
         public void Save()
         {
-            string ev = JsonConvert.SerializeObject(events, Formatting.Indented);
-            File.WriteAllText(dbPath, ev);
+            lock (locker)
+            {
+                string ev = JsonConvert.SerializeObject(events, Formatting.Indented);
+                File.WriteAllText(dbPath, ev);
+            }
         }
         private void AddToQueue(Event e)
         {
@@ -236,7 +257,7 @@ namespace PlannerTelegram
                 if (!added)
                     todayNotif.Add(new Tuple<DateTime, Event>(e.notifyTime[i], e));
             }
-            todayNotif.Sort();
+            todayNotif.Sort((lhs, rhs) => lhs.Item1.CompareTo(rhs.Item1));
         }
         private void RemoveFromQueue(Event e)
         {
@@ -260,6 +281,98 @@ namespace PlannerTelegram
                 }
                 newtodayNotif.Sort();
                 todayNotif = newtodayNotif;
+            }
+        }
+        private async void SendStats(Object state)
+        {
+            var bot = (ITelegramBotClient)state;
+            bool erase = false;
+
+            foreach (long user in stats.Keys)
+            {
+                string message = "";
+                string importance = "";
+                int count = 0;
+                int done = 0;
+                string bodyDone = "";
+                string bodyNotDone = "";
+                string term = "";
+                foreach (Event ev in stats[user])
+                {
+                    count++;
+                    switch (ev.importance)
+                    {
+                        case (Importance.Important):
+                            importance = "Important";
+                            break;
+                        case (Importance.Medium):
+                            importance = "Medium";
+                            break;
+                        case (Importance.Casual):
+                            importance = "Casual";
+                            break;
+                    }
+                    if (DateTime.Now.Day == 1)
+                    {
+                        erase = true;
+                        term = "month";
+                        if (ev.done)
+                        {
+                            ++done;
+                            bodyDone += $"{ev.name} Importance: {importance}\n";
+                        }
+                        else
+                            bodyNotDone += $"{ev.name} Importance: {importance}\n";
+                    }
+                    else if (DateTime.Now.DayOfWeek == DayOfWeek.Monday)
+                    {
+                        term = "week";
+                        if (DateTime.Now.AddDays(-7).AddMinutes(-5) <= ev.initTime)
+                        {
+                            if (ev.done)
+                            {
+                                ++done;
+                                bodyDone += $"{ev.name} Importance: {importance}\n";
+                            }
+                            else
+                                bodyNotDone += $"{ev.name} Importance: {importance}\n";
+                        }
+                    }
+                    else
+                    {
+                        term = "day";
+                        if (DateTime.Now.AddDays(-1).AddMinutes(-5) <= ev.initTime)
+                        {
+                            if (ev.done)
+                            {
+                                ++done;
+                                bodyDone += $"{ev.name} Importance: {importance}\n";
+                            }
+                            else
+                                bodyNotDone += $"{ev.name} Importance: {importance}\n";
+                        }
+                    }
+                }
+                if (count != 0)
+                {
+                    message += $"Previous {term} statistic:\nYou've planned {count} things!\n" +
+                        $"{done} of them are done.\n";
+                    if (done != 0)
+                        message += $"Done:\n{bodyDone}";
+                    if (done == count)
+                        message += "\nCongratulations! You've done everything you planned!";
+                    else
+                        message += $"\nActual:\n{bodyNotDone}";
+                    await bot.SendTextMessageAsync(
+                            chatId: user,
+                            text: $"{message}"
+                            ).ConfigureAwait(false);
+                }
+            }
+            if (erase)
+            {
+                stats.Clear();
+                File.WriteAllText(statPath, JsonConvert.SerializeObject(stats, Formatting.Indented));
             }
         }
     }

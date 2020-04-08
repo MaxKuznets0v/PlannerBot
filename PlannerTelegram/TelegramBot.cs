@@ -26,11 +26,12 @@ namespace PlannerTelegram
         static readonly Planner planner = new Planner();
         static private Dictionary<long, State> states = new Dictionary<long, State>();
         public static ITelegramBotClient bot;
-        private readonly static string token = "";
-        private readonly static HttpToSocks5Proxy proxy = new HttpToSocks5Proxy("96.96.1.165", 1080);
+        private readonly static string token = "884332409:AAHSk9goPXpIgPX4RPhz9USCdb5APps6aio";
+        private readonly static HttpToSocks5Proxy proxy = new HttpToSocks5Proxy("96.96.33.133", 1080);
         static void Main(string[] args)
         {
             bot = new TelegramBotClient(token, proxy) { Timeout = TimeSpan.FromSeconds(10) };
+            //bot = new TelegramBotClient(token) { Timeout = TimeSpan.FromSeconds(10) };
             try
             {
                 var me = bot.GetMeAsync().Result;
@@ -51,7 +52,7 @@ namespace PlannerTelegram
             // updating records
             DateTime midnight = DateTime.Now.AddDays(1).Date;
             DateTime now = DateTime.Now;
-            var timerMidUpd = new Timer(o => { planner.MidnightUpdate(); }, null, midnight - now, TimeSpan.FromDays(1));
+            var timerMidUpd = new Timer(o => { planner.MidnightUpdate(bot); }, null, midnight - now, TimeSpan.FromDays(1));
 
             // Sending notifications
             ThreadPool.QueueUserWorkItem(planner.Notify, bot);
@@ -335,8 +336,8 @@ namespace PlannerTelegram
                     break;
                 default:
                     tempEvent = new Tuple<Event, int>(new Event(), 0);
-                    Send(userId, "Something went wrong! Code: Message");
-                    Send(userId, "Push the buttons!");
+                    //Send(userId, "Something went wrong! Code: Message");
+                    Send(userId, "Try to push the buttons! Try again");
                     states[userId] = State.CommandReciever;
                     return;
             }
