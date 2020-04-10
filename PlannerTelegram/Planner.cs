@@ -44,6 +44,8 @@ namespace PlannerTelegram
         }
         public void Add(long userId, Event e)
         {
+            if (e.name == "")
+                return;
             lock(locker)
             {
                 if (!Contains(userId))

@@ -22,7 +22,7 @@ namespace PlannerTelegram
     }
     class TelegramBot
     {
-        static private Tuple<Event, int> tempEvent = new Tuple<Event, int>(new Event(), 0);
+        static private Dictionary<long, Tuple<Event, int>> tempEvents =  new Dictionary<long, Tuple<Event, int>>();
         static readonly Planner planner = new Planner();
         static private Dictionary<long, State> states = new Dictionary<long, State>();
         public static ITelegramBotClient bot;
@@ -81,11 +81,13 @@ namespace PlannerTelegram
             {
                 return;
             }
+            Tuple<Event, int> tempEvent;
             switch (states[userId])
             {
                 case State.MarkName:
                     int curEvent = Int16.Parse(e.CallbackQuery.Data);
                     tempEvent = new Tuple<Event, int>(new Event(planner.Get(e.CallbackQuery.Message.Chat.Id)[curEvent]), curEvent);
+                    tempEvents[userId] = tempEvent;
                     var markup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardMarkup(new[]
                     {
                         new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Done"),
@@ -97,6 +99,7 @@ namespace PlannerTelegram
                 case State.DelayName:
                     int curEventDelayName = Int16.Parse(e.CallbackQuery.Data);
                     tempEvent = new Tuple<Event, int>(new Event(planner.Get(e.CallbackQuery.Message.Chat.Id)[curEventDelayName]), curEventDelayName);
+                    tempEvents[userId] = tempEvent;
                     var markupDelayName = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardMarkup(new[]
                     {
                         new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Today"),
@@ -128,6 +131,8 @@ namespace PlannerTelegram
             if (!states.ContainsKey(userId))
                 states.Add(userId, State.CommandReciever);
 
+            if (!tempEvents.ContainsKey(userId))
+                tempEvents[userId] = new Tuple<Event, int>(new Event(), 0);
             switch (states[userId])
             {
                 case State.CommandReciever:
@@ -217,8 +222,8 @@ namespace PlannerTelegram
                     }
                     break;
                 case State.AddName:
-                    tempEvent.Item1.name = text;
-                    if (tempEvent.Item1.name == "")
+                    tempEvents[userId].Item1.name = text;
+                    if (tempEvents[userId].Item1.name == "")
                         Send(userId, "Enter non empty name!");
                     else
                     {
@@ -242,13 +247,13 @@ namespace PlannerTelegram
                     switch (text)
                     {
                         case "Today":
-                            tempEvent.Item1.time = Time.Today;
+                            tempEvents[userId].Item1.time = Time.Today;
                             break;
                         case "Tomorrow":
-                            tempEvent.Item1.time = Time.Tomorrow;
+                            tempEvents[userId].Item1.time = Time.Tomorrow;
                             break;
                         case "No Term":
-                            tempEvent.Item1.time = Time.NoTerm;
+                            tempEvents[userId].Item1.time = Time.NoTerm;
                             break;
                         default:
                             Send(userId, "Push the buttons!");
@@ -273,21 +278,21 @@ namespace PlannerTelegram
                     switch (text)
                     {
                         case "Important":
-                            tempEvent.Item1.importance = Importance.Important;
+                            tempEvents[userId].Item1.importance = Importance.Important;
                             break;
                         case "Medium":
-                            tempEvent.Item1.importance = Importance.Medium;
+                            tempEvents[userId].Item1.importance = Importance.Medium;
                             break;
                         case "Casual":
-                            tempEvent.Item1.importance = Importance.Casual;
+                            tempEvents[userId].Item1.importance = Importance.Casual;
                             break;
                         default:
                             Send(userId, "Push the buttons!");
                             return;
                     }
-                    tempEvent.Item1.owner = userId;
-                    planner.Add(userId, new Event(tempEvent.Item1));
-                    tempEvent = new Tuple<Event, int>(new Event(), 0);
+                    tempEvents[userId].Item1.owner = userId;
+                    planner.Add(userId, new Event(tempEvents[userId].Item1));
+                    tempEvents[userId] = new Tuple<Event, int>(new Event(), 0);
 
                     var markup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardRemove();
                     await bot.SendTextMessageAsync(e.Message.Chat.Id, "Record added!", replyMarkup: markup);
@@ -297,10 +302,10 @@ namespace PlannerTelegram
                     switch (text)
                     {
                         case "Done":
-                            tempEvent.Item1.done = true;
+                            tempEvents[userId].Item1.done = true;
                             break;
                         case "Not done":
-                            tempEvent.Item1.done = false;
+                            tempEvents[userId].Item1.done = false;
                             break;
                         default:
                             Send(userId, "Push the buttons!");
@@ -308,21 +313,21 @@ namespace PlannerTelegram
                     }
                     var markupMarkDone = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardRemove();
                     await bot.SendTextMessageAsync(e.Message.Chat.Id, $"State was successfully changed!", replyMarkup: markupMarkDone);
-                    planner.Mark(e.Message.Chat.Id, tempEvent.Item2, tempEvent.Item1.done);
-                    tempEvent = new Tuple<Event, int>(new Event(), 0);
+                    planner.Mark(e.Message.Chat.Id, tempEvents[userId].Item2, tempEvents[userId].Item1.done);
+                    tempEvents[userId] = new Tuple<Event, int>(new Event(), 0);
                     states[userId] = State.CommandReciever;
                     break;
                 case State.DelayTime:
                     switch (text)
                     {
                         case "Today":
-                            tempEvent.Item1.time = Time.Today;
+                            tempEvents[userId].Item1.time = Time.Today;
                             break;
                         case "Tomorrow":
-                            tempEvent.Item1.time = Time.Tomorrow;
+                            tempEvents[userId].Item1.time = Time.Tomorrow;
                             break;
                         case "No Term":
-                            tempEvent.Item1.time = Time.NoTerm;
+                            tempEvents[userId].Item1.time = Time.NoTerm;
                             break;
                         default:
                             Send(userId, "Push the buttons!");
@@ -330,12 +335,12 @@ namespace PlannerTelegram
                     }
                     var markupDelayTime = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardRemove();
                     await bot.SendTextMessageAsync(userId, $"Changes saved!", replyMarkup: markupDelayTime);
-                    planner.Delay(userId, tempEvent.Item2, tempEvent.Item1.time);
-                    tempEvent = new Tuple<Event, int>(new Event(), 0);
+                    planner.Delay(userId, tempEvents[userId].Item2, tempEvents[userId].Item1.time);
+                    tempEvents[userId] = new Tuple<Event, int>(new Event(), 0);
                     states[userId] = State.CommandReciever;
                     break;
                 default:
-                    tempEvent = new Tuple<Event, int>(new Event(), 0);
+                    tempEvents[userId] = new Tuple<Event, int>(new Event(), 0);
                     //Send(userId, "Something went wrong! Code: Message");
                     Send(userId, "Try to push the buttons! Try again");
                     states[userId] = State.CommandReciever;
