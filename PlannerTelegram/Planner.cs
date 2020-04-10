@@ -155,7 +155,7 @@ namespace PlannerTelegram
                             bool contains = false;
                             foreach (var e in stats[user.Key])
                             {
-                                if (e == ev)
+                                if (e.initTime == ev.initTime)
                                 {
                                     e.done = true;
                                     contains = true;
@@ -166,10 +166,14 @@ namespace PlannerTelegram
                         }
                         else
                         {
+                            bool contains = false;
+                            foreach (var elem in stats[user.Key])
+                                if (elem.initTime == ev.initTime)
+                                    contains = true;
+                            if (!contains)
+                                stats[user.Key].Add(ev);
                             if (ev.time == Time.Today)
                             {
-                                if (!stats[user.Key].Contains(ev))
-                                    stats[user.Key].Add(ev);
                                 ev.notifyTime.Clear();
                                 ev.time = Time.Tomorrow;
                                 var add = new Event(ev)
@@ -185,6 +189,8 @@ namespace PlannerTelegram
                                 AddToQueue(ev);
                                 updatedEvents[user.Key].Add(new Event(ev));
                             }
+                            else
+                                updatedEvents[user.Key].Add(new Event(ev));
                         }
                     }
                 }
@@ -244,43 +250,55 @@ namespace PlannerTelegram
         {
             for (int i = e.notifyTime.Count() - 1; i >= 0; --i)
             {
-                bool added = false;
-                for (int j = 0; j < todayNotif.Count(); ++j)
+                lock(locker)
                 {
-                    if (todayNotif[j].Item1 > e.notifyTime[i])
+                    bool added = false;
+                    for (int j = 0; j < todayNotif.Count(); ++j)
                     {
-                        todayNotif.Insert(j, new Tuple<DateTime, Event>(e.notifyTime[i], e));
-                        added = true;
-                        break;
+                        if (todayNotif[j].Item1 > e.notifyTime[i])
+                        {
+                            todayNotif.Insert(j, new Tuple<DateTime, Event>(e.notifyTime[i], e));
+                            added = true;
+                            break;
+                        }
                     }
+                    if (!added)
+                        todayNotif.Add(new Tuple<DateTime, Event>(e.notifyTime[i], e));
                 }
-                if (!added)
-                    todayNotif.Add(new Tuple<DateTime, Event>(e.notifyTime[i], e));
             }
-            todayNotif.Sort((lhs, rhs) => lhs.Item1.CompareTo(rhs.Item1));
+            lock(locker)
+            {
+                todayNotif.Sort((lhs, rhs) => lhs.Item1.CompareTo(rhs.Item1));
+            }
         }
         private void RemoveFromQueue(Event e)
         {
             var newtodayNotif = new List<Tuple<DateTime, Event>>();
             if (e.time == Time.Today)
             {
-                foreach (var n in todayNotif)
+                lock(locker)
                 {
-                    bool contains = false;
-
-                    foreach (var elem in e.notifyTime)
+                    foreach (var n in todayNotif)
                     {
-                        if (n.Item1 == elem)
+                        bool contains = false;
+
+                        foreach (var elem in e.notifyTime)
                         {
-                            contains = true;
-                            break;
+                            if (n.Item1 == elem)
+                            {
+                                contains = true;
+                                break;
+                            }
                         }
+                        if (!contains)
+                            newtodayNotif.Add(n);
                     }
-                    if (!contains)
-                        newtodayNotif.Add(n);
                 }
-                newtodayNotif.Sort();
-                todayNotif = newtodayNotif;
+                newtodayNotif.Sort((lhs, rhs) => lhs.Item1.CompareTo(rhs.Item1));
+                lock (locker)
+                {
+                    todayNotif = newtodayNotif;
+                }
             }
         }
         private async void SendStats(Object state)
@@ -299,7 +317,6 @@ namespace PlannerTelegram
                 string term = "";
                 foreach (Event ev in stats[user])
                 {
-                    count++;
                     switch (ev.importance)
                     {
                         case (Importance.Important):
@@ -314,6 +331,7 @@ namespace PlannerTelegram
                     }
                     if (DateTime.Now.Day == 1)
                     {
+                        count++;
                         erase = true;
                         term = "month";
                         if (ev.done)
@@ -329,6 +347,7 @@ namespace PlannerTelegram
                         term = "week";
                         if (DateTime.Now.AddDays(-7).AddMinutes(-5) <= ev.initTime)
                         {
+                            count++;
                             if (ev.done)
                             {
                                 ++done;
@@ -343,6 +362,7 @@ namespace PlannerTelegram
                         term = "day";
                         if (DateTime.Now.AddDays(-1).AddMinutes(-5) <= ev.initTime)
                         {
+                            count++;
                             if (ev.done)
                             {
                                 ++done;
