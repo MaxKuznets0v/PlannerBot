@@ -35,7 +35,7 @@ namespace PlannerTelegram
                 foreach (var ev in user.Value)
                     if (ev.time == Time.Today && !ev.done)
                         foreach (var time in ev.notifyTime)
-                            if (time >= DateTime.Now)
+                            if (time >= DateTime.Now.AddHours(3))
                                 todayNotif.Add(new Tuple<DateTime, Event>(time, ev));
         }
         public bool Contains(long userId)
@@ -219,7 +219,7 @@ namespace PlannerTelegram
                 if (todayNotif.Count() != 0)
                 {
                     var nextNotif = todayNotif[0];
-                    if (nextNotif.Item1 <= DateTime.Now)
+                    if (nextNotif.Item1 <= DateTime.Now.AddHours(3))
                     {
                         string emoji = "";
                         string importance = "";
@@ -356,7 +356,7 @@ namespace PlannerTelegram
                     else if (DateTime.Now.DayOfWeek == DayOfWeek.Monday)
                     {
                         term = "week";
-                        if (DateTime.Now.AddDays(-7).AddMinutes(-5) <= ev.initTime)
+                        if (DateTime.Now.AddHours(3).AddDays(-7).AddMinutes(-5) <= ev.initTime)
                         {
                             count++;
                             if (ev.done)
@@ -371,7 +371,7 @@ namespace PlannerTelegram
                     else
                     {
                         term = "day";
-                        if (DateTime.Now.AddDays(-1).AddMinutes(-5) <= ev.initTime)
+                        if (DateTime.Now.AddHours(3).AddDays(-1).AddMinutes(-5) <= ev.initTime)
                         {
                             count++;
                             if (ev.done)

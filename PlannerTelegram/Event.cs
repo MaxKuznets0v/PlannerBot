@@ -32,7 +32,7 @@ namespace PlannerTelegram
             this.name = name;
             this.time = time;
             importance = imp;
-            initTime = DateTime.Now;
+            initTime = DateTime.Now.AddHours(3);
             done = false;
         }
         public Event()
@@ -41,7 +41,7 @@ namespace PlannerTelegram
             owner = new long();
             time = new Time();
             importance = new Importance();
-            initTime = DateTime.Now;
+            initTime = DateTime.Now.AddHours(3);
             done = false;
         }
         public Event(Event e)
