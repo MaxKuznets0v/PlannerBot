@@ -47,12 +47,10 @@ namespace PlannerTelegram
             bot.OnCallbackQuery += OnCallbackQueryHandler;
 
             // Saving records every 30 sec
-            var timerSave = new Timer(o => { planner.Save(); }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+            ThreadPool.QueueUserWorkItem(Save);
 
             // updating records
-            DateTime midnight = DateTime.Now.AddDays(1).Date;
-            DateTime now = DateTime.Now;
-            var timerMidUpd = new Timer(o => { planner.MidnightUpdate(bot); }, null, midnight - now, TimeSpan.FromDays(1));
+            ThreadPool.QueueUserWorkItem(MidnightUpdate, bot);
 
             // Sending notifications
             ThreadPool.QueueUserWorkItem(planner.Notify, bot);
@@ -61,7 +59,23 @@ namespace PlannerTelegram
 
             Console.ReadKey();
         }
-
+        public static async void MidnightUpdate(Object state)
+        {
+            Thread.Sleep(DateTime.Now.AddDays(1).Date - DateTime.Now);
+            while (true)
+            {
+                planner.MidnightUpdate(bot);
+                Thread.Sleep(TimeSpan.FromDays(1));
+            }
+        }
+        public static async void Save(Object state)
+        {
+            while (true)
+            {
+                Thread.Sleep(30000);
+                planner.Save();
+            }
+        }
         static public async void Send(Telegram.Bot.Types.ChatId userId, string text)
         {
             await bot.SendTextMessageAsync(
