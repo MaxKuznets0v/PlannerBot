@@ -69,7 +69,6 @@ namespace PlannerTelegram
                         text: text
                         ).ConfigureAwait(false);
         }
-
         private static async void OnCallbackQueryHandler(object sender, Telegram.Bot.Args.CallbackQueryEventArgs e)
         {
             var userId = e.CallbackQuery.Message.Chat.Id;
@@ -120,7 +119,6 @@ namespace PlannerTelegram
                 //    break;
             }
         }
-
         private static async void OnMessageHandler(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
             var text = e.Message.Text;

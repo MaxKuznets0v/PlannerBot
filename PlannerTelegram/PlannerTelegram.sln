@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29905.134
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlannerTelegram", "PlannerTelegram.csproj", "{ECABABEE-A1E1-446F-A382-B4CD0839A018}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlannerTelegram", "PlannerTelegram.csproj", "{2D5AE1D9-DE32-4CDE-8C33-BB56B01767DA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{ECABABEE-A1E1-446F-A382-B4CD0839A018}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{ECABABEE-A1E1-446F-A382-B4CD0839A018}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{ECABABEE-A1E1-446F-A382-B4CD0839A018}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{ECABABEE-A1E1-446F-A382-B4CD0839A018}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2D5AE1D9-DE32-4CDE-8C33-BB56B01767DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D5AE1D9-DE32-4CDE-8C33-BB56B01767DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D5AE1D9-DE32-4CDE-8C33-BB56B01767DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D5AE1D9-DE32-4CDE-8C33-BB56B01767DA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {8C3610F8-A2D0-4CF8-AF59-2B011D14F281}
+		SolutionGuid = {DA868B0B-C1A4-42E6-9EA5-AE9AE449FF08}
 	EndGlobalSection
 EndGlobal
