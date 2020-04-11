@@ -89,6 +89,15 @@ namespace PlannerTelegram
                     RemoveFromQueue(events[userId][eventInd]);
                 }
                 events[userId].RemoveAt(eventInd);
+
+                // deleting from stats
+                if (stats.ContainsKey(userId))
+                    for (int i = 0; i < stats[userId].Count(); ++i)
+                        if (stats[userId][i].initTime == events[userId][eventInd].initTime)
+                        {
+                            stats[userId].RemoveAt(i);
+                            break;
+                        }
             }
         }
         public List<Event> Get(long userId)
