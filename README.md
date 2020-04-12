@@ -9,5 +9,5 @@ There are 6 main commands:
 * /show - showing all the records in time order
 * /mark - marking business done/not done
 * /delay - changing record time
-* /remove - erasing deal from the list (use /mark instead if record is done, this command deletes event from stats)
+* /remove - erasing deal from the list (if record is done use /mark instead, this command deletes event from stats)
 * /help - showing all available commands with hints
