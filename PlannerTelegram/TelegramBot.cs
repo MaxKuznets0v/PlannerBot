@@ -30,6 +30,7 @@ namespace PlannerTelegram
         //private readonly static HttpToSocks5Proxy proxy = new HttpToSocks5Proxy("96.96.33.133", 1080);
         static void Main(string[] args)
         {
+
             //bot = new TelegramBotClient(token, proxy) { Timeout = TimeSpan.FromSeconds(10) };
             bot = new TelegramBotClient(token) { Timeout = TimeSpan.FromSeconds(10) };
             try
@@ -42,7 +43,6 @@ namespace PlannerTelegram
                 Console.WriteLine("Time Out");
                 return;
             }
-
             bot.OnMessage += OnMessageHandler;
             bot.OnCallbackQuery += OnCallbackQueryHandler;
 
@@ -160,7 +160,8 @@ namespace PlannerTelegram
                                 "\n/show shows all records\n" +
                                 "/mark then choose a bussiness to mark it done\n" +
                                 "/delay then choose a different time for your business\n" +
-                                "/remove then choose a record to remove");
+                                "/remove then choose a record to remove\n" +
+                                "(You'll receive notifications and daily statistics");
                             break;
                         case "/show":
                             if (!planner.Contains(userId) || planner.Get(userId).Count() == 0)

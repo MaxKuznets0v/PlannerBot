@@ -226,15 +226,15 @@ namespace PlannerTelegram
                         switch (nextNotif.Item2.importance)
                         {
                             case (Importance.Important):
-                                emoji = "‼"; // two red exclamation marks
+                                emoji = char.ConvertFromUtf32(0x203C); // two red exclamation marks
                                 importance = "Important";
                                 break;
-                            case (Importance.Medium):
-                                emoji = "⚠"; // yellow warning sign
+                            case (Importance.Medium):	
+                                emoji = char.ConvertFromUtf32(0x26A0); // yellow warning sign
                                 importance = "Medium";
                                 break;
                             case (Importance.Casual):
-                                emoji = "✳"; // green sparkle
+                                emoji = char.ConvertFromUtf32(0x2733); // green sparkle
                                 importance = "Casual";
                                 break;
                         }
