@@ -238,10 +238,18 @@ namespace PlannerTelegram
                                 importance = "Casual";
                                 break;
                         }
-                        await bot.SendTextMessageAsync(
-                            chatId: nextNotif.Item2.owner,
-                            text: $"{emoji} {importance}: {nextNotif.Item2.name}"
-                            ).ConfigureAwait(false);
+                        try 
+                        {
+                            await bot.SendTextMessageAsync(
+                                chatId: nextNotif.Item2.owner,
+                                text: $"{emoji} {importance}: {nextNotif.Item2.name}"
+                                ).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            Console.WriteLine($"Error: forbidden user {nextNotif.Item2.owner}");
+                            DeleteUser(nextNotif.Item2.owner);
+                        }
                         todayNotif.RemoveAt(0);
                     }
                 }
@@ -394,16 +402,38 @@ namespace PlannerTelegram
                         message += "\nCongratulations! You've done everything you planned!";
                     else
                         message += $"\nActual:\n{bodyNotDone}";
-                    await bot.SendTextMessageAsync(
-                            chatId: user,
-                            text: $"{message}"
-                            ).ConfigureAwait(false);
+                    try
+                    {
+                        await bot.SendTextMessageAsync(
+                                chatId: user,
+                                text: $"{message}"
+                                ).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"Error: forbidden user {user}");
+                        DeleteUser(user);
+                    }
                 }
             }
             if (erase)
             {
                 stats.Clear();
                 File.WriteAllText(statPath, JsonConvert.SerializeObject(stats, Formatting.Indented));
+            }
+        }
+        public void DeleteUser(long userId)
+        {
+            lock(locker)
+            {
+                events.Remove(userId);
+                stats.Remove(userId);
+                for (int i = 0; i < todayNotif.Count(); ++i)
+                    if (todayNotif[i].Item2.owner == userId)
+                    {
+                        todayNotif.RemoveAt(i);
+                        --i;
+                    }
             }
         }
     }

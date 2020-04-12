@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Threading;
 using Telegram.Bot;
 using MihaZupan;
@@ -27,10 +28,10 @@ namespace PlannerTelegram
         static private Dictionary<long, State> states = new Dictionary<long, State>();
         public static ITelegramBotClient bot;
         private readonly static string token = "";
+        private readonly static string logPath = Directory.GetParent(Directory.GetParent(Directory.GetCurrentDirectory().ToString()).ToString()) + @"\Users\logs.txt";
         //private readonly static HttpToSocks5Proxy proxy = new HttpToSocks5Proxy("96.96.33.133", 1080);
         static void Main(string[] args)
         {
-
             //bot = new TelegramBotClient(token, proxy) { Timeout = TimeSpan.FromSeconds(10) };
             bot = new TelegramBotClient(token) { Timeout = TimeSpan.FromSeconds(10) };
             try
@@ -76,12 +77,22 @@ namespace PlannerTelegram
                 planner.Save();
             }
         }
-        static public async void Send(Telegram.Bot.Types.ChatId userId, string text)
+        static public async void Send(long userId, string text)
         {
-            await bot.SendTextMessageAsync(
-                        chatId: userId,
-                        text: text
-                        ).ConfigureAwait(false);
+            try
+            {
+                await bot.SendTextMessageAsync(
+                            chatId: userId,
+                            text: text
+                            ).ConfigureAwait(false);
+            }
+            catch
+            {
+                Console.WriteLine($"Error: forbidden user {userId}");
+                planner.DeleteUser(userId);
+                states.Remove(userId);
+                tempEvents.Remove(userId);
+            }
         }
         private static async void OnCallbackQueryHandler(object sender, Telegram.Bot.Args.CallbackQueryEventArgs e)
         {
@@ -106,7 +117,18 @@ namespace PlannerTelegram
                         new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Done"),
                         new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Not done")
                     });
-                    await bot.SendTextMessageAsync(userId, "Choose state", replyMarkup: markup);
+                    try
+                    {
+                        await bot.SendTextMessageAsync(userId, "Choose state", replyMarkup: markup);
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"Error: forbidden user {userId}");
+                        planner.DeleteUser(userId);
+                        states.Remove(userId);
+                        tempEvents.Remove(userId);
+                        break;
+                    }
                     states[userId] = State.MarkDone;
                     break;
                 case State.DelayName:
@@ -119,7 +141,18 @@ namespace PlannerTelegram
                         new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("Tomorrow"),
                         new Telegram.Bot.Types.ReplyMarkups.KeyboardButton("No Term")
                     });
-                    await bot.SendTextMessageAsync(e.CallbackQuery.Message.Chat.Id, "Choose state", replyMarkup: markupDelayName);
+                    try
+                    {
+                        await bot.SendTextMessageAsync(e.CallbackQuery.Message.Chat.Id, "Choose state", replyMarkup: markupDelayName);
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"Error: forbidden user {userId}");
+                        planner.DeleteUser(userId);
+                        states.Remove(userId);
+                        tempEvents.Remove(userId);
+                        break;
+                    }
                     states[userId] = State.DelayTime;
                     break;
                 case State.RemoveName:
@@ -139,6 +172,14 @@ namespace PlannerTelegram
             var userId = e.Message.Chat.Id;
             if (text == null)
                 return;
+            try
+            {
+                //logging messages
+                File.AppendAllText(logPath, $"{userId}({e.Message.Chat.FirstName} {e.Message.Chat.LastName}): {text}, {e.Message.Date}\n");
+            }
+            catch
+            {
+            }
             Console.WriteLine($"User {userId}({e.Message.Chat.FirstName}) sent {text}");
             if (!states.ContainsKey(userId))
                 states.Add(userId, State.CommandReciever);
@@ -195,7 +236,18 @@ namespace PlannerTelegram
                                 listMarkName.Add(addingList);
                             }
                             var markupMarkName = new Telegram.Bot.Types.ReplyMarkups.InlineKeyboardMarkup(listMarkName);
-                            await bot.SendTextMessageAsync(userId, "Choose a deal you want to mark:", replyMarkup: markupMarkName);
+                            try
+                            {
+                                await bot.SendTextMessageAsync(userId, "Choose a deal you want to mark:", replyMarkup: markupMarkName);
+                            }
+                            catch
+                            {
+                                Console.WriteLine($"Error: forbidden user {userId}");
+                                planner.DeleteUser(userId);
+                                states.Remove(userId);
+                                tempEvents.Remove(userId);
+                                break;
+                            }
                             break;
                         case "/delay":
                             states[userId] = State.DelayName;
@@ -211,7 +263,18 @@ namespace PlannerTelegram
                                 listDelay.Add(addingList);
                             }
                             var markupDelay = new Telegram.Bot.Types.ReplyMarkups.InlineKeyboardMarkup(listDelay);
-                            await bot.SendTextMessageAsync(userId, "Choose a deal you want to delay:", replyMarkup: markupDelay);
+                            try
+                            { 
+                                await bot.SendTextMessageAsync(userId, "Choose a deal you want to delay:", replyMarkup: markupDelay);
+                            }
+                            catch
+                            {
+                                Console.WriteLine($"Error: forbidden user {userId}");
+                                planner.DeleteUser(userId);
+                                states.Remove(userId);
+                                tempEvents.Remove(userId);
+                                break;
+                            }
                             break;
                         case "/remove":
                             states[userId] = State.RemoveName;
@@ -227,7 +290,18 @@ namespace PlannerTelegram
                                 listRemove.Add(addingList);
                             }
                             var markupRemove = new Telegram.Bot.Types.ReplyMarkups.InlineKeyboardMarkup(listRemove);
-                            await bot.SendTextMessageAsync(userId, "Choose a deal you want to delay:", replyMarkup: markupRemove);
+                            try
+                            {
+                                await bot.SendTextMessageAsync(userId, "Choose a deal you want to delay:", replyMarkup: markupRemove);
+                            }
+                            catch
+                            {
+                                Console.WriteLine($"Error: forbidden user {userId}");
+                                planner.DeleteUser(userId);
+                                states.Remove(userId);
+                                tempEvents.Remove(userId);
+                                break;
+                            }
                             break;
                         default:
                             Send(userId, "Enter a proper command! Type /help to get more info");
@@ -252,7 +326,18 @@ namespace PlannerTelegram
                         {
                             OneTimeKeyboard = true
                         };
-                        await bot.SendTextMessageAsync(userId, "Choose Time below!", replyMarkup: TimeMarkup);
+                        try
+                        {
+                            await bot.SendTextMessageAsync(userId, "Choose Time below!", replyMarkup: TimeMarkup);
+                        }
+                        catch
+                        {
+                            Console.WriteLine($"Error: forbidden user {userId}");
+                            planner.DeleteUser(userId);
+                            states.Remove(userId);
+                            tempEvents.Remove(userId);
+                            break;
+                        }
                     }
                     states[userId] = State.AddTime;
                     break;
@@ -284,7 +369,18 @@ namespace PlannerTelegram
                     {
                         OneTimeKeyboard = true
                     };
-                    await bot.SendTextMessageAsync(userId, "Choose importance below!", replyMarkup: ImpMarkup);
+                    try
+                    {
+                        await bot.SendTextMessageAsync(userId, "Choose importance below!", replyMarkup: ImpMarkup);
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"Error: forbidden user {userId}");
+                        planner.DeleteUser(userId);
+                        states.Remove(userId);
+                        tempEvents.Remove(userId);
+                        break;
+                    }
                     states[userId] = State.AddImportance;
                     break;
                 case State.AddImportance:
@@ -308,7 +404,18 @@ namespace PlannerTelegram
                     tempEvents[userId] = new Tuple<Event, int>(new Event(), 0);
 
                     var markup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardRemove();
-                    await bot.SendTextMessageAsync(e.Message.Chat.Id, "Record added!", replyMarkup: markup);
+                    try
+                    {
+                        await bot.SendTextMessageAsync(e.Message.Chat.Id, "Record added!", replyMarkup: markup);
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"Error: forbidden user {userId}");
+                        planner.DeleteUser(userId);
+                        states.Remove(userId);
+                        tempEvents.Remove(userId);
+                        break;
+                    }
                     states[userId] = State.CommandReciever;
                     break;
                 case State.MarkDone:
@@ -325,7 +432,18 @@ namespace PlannerTelegram
                             return;
                     }
                     var markupMarkDone = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardRemove();
-                    await bot.SendTextMessageAsync(e.Message.Chat.Id, $"State was successfully changed!", replyMarkup: markupMarkDone);
+                    try
+                    {
+                        await bot.SendTextMessageAsync(e.Message.Chat.Id, $"State was successfully changed!", replyMarkup: markupMarkDone);
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"Error: forbidden user {userId}");
+                        planner.DeleteUser(userId);
+                        states.Remove(userId);
+                        tempEvents.Remove(userId);
+                        break;
+                    }
                     planner.Mark(e.Message.Chat.Id, tempEvents[userId].Item2, tempEvents[userId].Item1.done);
                     tempEvents[userId] = new Tuple<Event, int>(new Event(), 0);
                     states[userId] = State.CommandReciever;
@@ -347,7 +465,18 @@ namespace PlannerTelegram
                             return;
                     }
                     var markupDelayTime = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardRemove();
-                    await bot.SendTextMessageAsync(userId, $"Changes saved!", replyMarkup: markupDelayTime);
+                    try
+                    {
+                        await bot.SendTextMessageAsync(userId, $"Changes saved!", replyMarkup: markupDelayTime);
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"Error: forbidden user {userId}");
+                        planner.DeleteUser(userId);
+                        states.Remove(userId);
+                        tempEvents.Remove(userId);
+                        break;
+                    }
                     planner.Delay(userId, tempEvents[userId].Item2, tempEvents[userId].Item1.time);
                     tempEvents[userId] = new Tuple<Event, int>(new Event(), 0);
                     states[userId] = State.CommandReciever;
