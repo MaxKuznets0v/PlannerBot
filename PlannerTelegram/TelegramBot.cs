@@ -59,7 +59,7 @@ namespace PlannerTelegram
 
             Console.ReadKey();
         }
-        public static async void MidnightUpdate(Object state)
+        public static void MidnightUpdate(Object state)
         {
             Thread.Sleep(DateTime.Now.AddHours(3).AddDays(1).Date - DateTime.Now.AddHours(3));
             while (true)
@@ -68,7 +68,7 @@ namespace PlannerTelegram
                 Thread.Sleep(TimeSpan.FromDays(1));
             }
         }
-        public static async void Save(Object state)
+        public static void Save(Object state)
         {
             while (true)
             {
@@ -161,7 +161,7 @@ namespace PlannerTelegram
                                 "/mark then choose a bussiness to mark it done\n" +
                                 "/delay then choose a different time for your business\n" +
                                 "/remove then choose a record to remove\n" +
-                                "(You'll receive notifications and daily statistics");
+                                "(You'll receive notifications and daily statistics)");
                             break;
                         case "/show":
                             if (!planner.Contains(userId) || planner.Get(userId).Count() == 0)
