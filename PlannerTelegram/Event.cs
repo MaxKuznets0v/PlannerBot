@@ -34,6 +34,19 @@ namespace PlannerTelegram
             importance = imp;
             initTime = DateTime.Now.AddHours(3);
             done = false;
+            if (time != Time.NoTerm)
+            {
+                double notStep;
+                if (time == Time.Today)
+                {
+                    notStep = (new DateTime(initTime.Year, initTime.Month, initTime.Day).AddDays(1) - initTime).TotalSeconds / (int)importance;
+                    for (int i = 0; i < (int)importance - 1; ++i)
+                        notifyTime.Add(initTime.AddSeconds((i + 1) * notStep));
+                }
+                else
+                    for (int i = 0; i < (int)importance - 1; ++i)
+                        notifyTime.Add(new DateTime(initTime.Year, initTime.Month, initTime.Day, 0, 0, 0).AddDays(1).AddHours((i + 1) * (24 / (int)importance)));
+            }
         }
         public Event()
         {

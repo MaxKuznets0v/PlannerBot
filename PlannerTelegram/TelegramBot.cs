@@ -179,6 +179,7 @@ namespace PlannerTelegram
             }
             catch
             {
+                File.AppendAllText(logPath, $"{userId}({e.Message.Chat.FirstName}): {text}, {e.Message.Date}\n");
             }
             Console.WriteLine($"User {userId}({e.Message.Chat.FirstName}) sent {text}");
             if (!states.ContainsKey(userId))
@@ -400,7 +401,7 @@ namespace PlannerTelegram
                             return;
                     }
                     tempEvents[userId].Item1.owner = userId;
-                    planner.Add(userId, new Event(tempEvents[userId].Item1));
+                    planner.Add(userId, new Event(tempEvents[userId].Item1.name, tempEvents[userId].Item1.time, tempEvents[userId].Item1.importance, tempEvents[userId].Item1.owner));
                     tempEvents[userId] = new Tuple<Event, int>(new Event(), 0);
 
                     var markup = new Telegram.Bot.Types.ReplyMarkups.ReplyKeyboardRemove();

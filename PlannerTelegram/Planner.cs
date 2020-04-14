@@ -230,7 +230,7 @@ namespace PlannerTelegram
                                 importance = "Important";
                                 break;
                             case (Importance.Medium):	
-                                emoji = char.ConvertFromUtf32(0x26A0); // yellow warning sign
+                                emoji = char.ConvertFromUtf32(0x1F315); // yellow moon
                                 importance = "Medium";
                                 break;
                             case (Importance.Casual):
@@ -244,13 +244,13 @@ namespace PlannerTelegram
                                 chatId: nextNotif.Item2.owner,
                                 text: $"{emoji} {importance}: {nextNotif.Item2.name}"
                                 ).ConfigureAwait(false);
+                            todayNotif.RemoveAt(0);
                         }
                         catch
                         {
                             Console.WriteLine($"Error: forbidden user {nextNotif.Item2.owner}");
                             DeleteUser(nextNotif.Item2.owner);
                         }
-                        todayNotif.RemoveAt(0);
                     }
                 }
 
@@ -348,7 +348,7 @@ namespace PlannerTelegram
                             importance = "Casual";
                             break;
                     }
-                    if (DateTime.Now.Day == 1)
+                    if (DateTime.Now.AddHours(3).Day == 1)
                     {
                         count++;
                         erase = true;
@@ -361,7 +361,7 @@ namespace PlannerTelegram
                         else
                             bodyNotDone += $"{ev.name} Importance: {importance}\n";
                     }
-                    else if (DateTime.Now.DayOfWeek == DayOfWeek.Monday)
+                    else if (DateTime.Now.AddHours(3).DayOfWeek == DayOfWeek.Monday)
                     {
                         term = "week";
                         if (DateTime.Now.AddHours(3).AddDays(-7).AddMinutes(-5) <= ev.initTime)
