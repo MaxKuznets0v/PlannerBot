@@ -81,7 +81,7 @@ namespace PlannerTelegram
                 }
                 else
                     for (int i = 0; i < (int)importance - 1; ++i)
-                        notifyTime.Add(new DateTime(initTime.Year, initTime.Month, initTime.Day, 0, 0, 0).AddDays(1).AddHours((i + 1) * (24 / (int)importance)));
+                        notifyTime.Add(new DateTime(DateTime.Now.AddHours(3).Year, DateTime.Now.AddHours(3).Month, DateTime.Now.AddHours(3).Day, 0, 0, 0).AddDays(1).AddHours((i + 1) * (24 / (int)importance)));
             }
         }
         static public bool operator >(Event lhs, Event rhs)
