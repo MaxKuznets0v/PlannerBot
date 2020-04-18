@@ -83,13 +83,6 @@ namespace PlannerTelegram
         {
             lock (locker)
             {
-                if (events[userId][eventInd].time == Time.Today)
-                {
-                    // deleting from notification queue
-                    RemoveFromQueue(events[userId][eventInd]);
-                }
-                events[userId].RemoveAt(eventInd);
-
                 // deleting from stats
                 if (stats.ContainsKey(userId))
                     for (int i = 0; i < stats[userId].Count(); ++i)
@@ -98,6 +91,13 @@ namespace PlannerTelegram
                             stats[userId].RemoveAt(i);
                             break;
                         }
+
+                if (events[userId][eventInd].time == Time.Today)
+                {
+                    // deleting from notification queue
+                    RemoveFromQueue(events[userId][eventInd]);
+                }
+                events[userId].RemoveAt(eventInd);
             }
         }
         public List<Event> Get(long userId)
